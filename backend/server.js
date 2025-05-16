@@ -12,7 +12,7 @@ class Server {
 
         // Inicializar la conexión a PostgreSQL
         this.pool = new Pool({
-            connectionString: process.env.DB_URL, // En .env: postgres://user:pass@host:puerto/dbname
+            connectionString: process.env.DB_URL,
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
 
