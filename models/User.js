@@ -1,11 +1,24 @@
-const mongoose = require('mongoose');
+exports.getAll = async (pool) => {
+  const result = await pool.query('SELECT id, name, email, role FROM users ORDER BY id');
+  return result.rows;
+};
 
-const userSchema = new mongoose.Schema({
-  nombre: { type: String, required: true },
-  rol: { type: String, enum: ['admin', 'conductor'], default: 'conductor' },
-  email: { type: String, required: true, unique: true },
-  telefono: { type: String },
-  activo: { type: Boolean, default: true }
-}, { timestamps: true });
+exports.create = async (pool, data) => {
+  const result = await pool.query(
+    'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
+    [data.name, data.email, data.password, data.role]
+  );
+  return result.rows[0];
+};
 
-module.exports = mongoose.model('User', userSchema);
+exports.update = async (pool, id, data) => {
+  const result = await pool.query(
+    'UPDATE users SET name = $1, email = $2, password = $3, role = $4 WHERE id = $5 RETURNING *',
+    [data.name, data.email, data.password, data.role, id]
+  );
+  return result.rows[0];
+};
+
+exports.delete = async (pool, id) => {
+  await pool.query('DELETE FROM users WHERE id = $1', [id]);
+};
