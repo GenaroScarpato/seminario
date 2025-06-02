@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import AdminLayout from './components/AdminLayout.jsx';
 import PedidosAdmin from './components/PedidosAdmin.jsx';
 
+
 export default function App() {
   return (
     <Router>
