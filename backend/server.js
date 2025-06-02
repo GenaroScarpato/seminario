@@ -1,8 +1,6 @@
 // server.js
 const express = require('express');
-const fileUpload = require('express-fileupload');
 const cors = require('cors');
-const cookieParser = require('cookie-parser');
 const { Pool } = require('pg'); // PostgreSQL
 
 class Server {
@@ -15,6 +13,16 @@ class Server {
             connectionString: process.env.DB_URL,
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
+
+        // Verificar conexión a BD
+        this.pool.connect()
+            .then(client => {
+                console.log('✅ Conectado a la base de datos PostgreSQL');
+                client.release();
+            })
+            .catch(err => {
+                console.error('❌ Error conectando a la base de datos:', err.message);
+            });
 
         // Hacer pool accesible en req
         this.app.use((req, res, next) => {
@@ -48,14 +56,8 @@ class Server {
         }));
 
         this.app.use(express.json());
-        this.app.use(cookieParser());
 
-        this.app.use(fileUpload({
-            useTempFiles: true,
-            tempFileDir: './tmp/',
-        }));
-
-        this.app.use('/uploads', express.static('uploads'));
+        console.log('⚙️ Middlewares cargados');
     }
 
     cargarRutas() {
@@ -63,6 +65,8 @@ class Server {
         this.app.use("/api/pedidos", require('./routes/pedidos'));
         this.app.use("/api/rutas", require('./routes/rutas'));
         this.app.use("/api/feedback", require('./routes/feedback'));
+
+        console.log('🛣️ Rutas cargadas');
     }
 }
 

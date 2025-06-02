@@ -1,0 +1,79 @@
+/* Reset básico */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Estilos globales */
+html, body {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f9fafb; /* gris claro profesional */
+  color: #111827; /* gris oscuro elegante */
+  line-height: 1.6;
+  font-size: 16px;
+  height: 100%;
+}
+
+/* Enlaces */
+a {
+  color: #2563eb; /* azul profesional */
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Botones por defecto */
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #2563eb;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+button:hover {
+  background-color: #1e40af;
+}
+
+/* Inputs y formularios */
+input, select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db; /* gris suave */
+  border-radius: 4px;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* Tablas limpias */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+th, td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+}
+
+/* Layout flex básico para AdminLayout */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
