@@ -57,6 +57,18 @@ class Server {
 
         this.app.use(express.json());
 
+        // Middleware para logging de errores
+        this.app.use((err, req, res, next) => {
+            console.error('Error en la aplicación:', {
+                timestamp: new Date(),
+                method: req.method,
+                path: req.path,
+                error: err,
+                stack: err.stack
+            });
+            next(err);
+        });
+
         console.log('⚙️ Middlewares cargados');
     }
 

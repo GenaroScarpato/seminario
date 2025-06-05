@@ -13,4 +13,5 @@ export const API_ROUTES = {
     UPDATE: '/api/pedidos/:id',
     DELETE: '/api/pedidos/:id'
   }
+
 };
