@@ -1,6 +1,8 @@
 import React from 'react';
 
 const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
+  const pedidosValidos = Array.isArray(pedidos) ? pedidos : [];
+
   return (
     <div className="container">
       <div className="table-responsive">
@@ -18,37 +20,45 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
             </tr>
           </thead>
           <tbody>
-            {pedidos.map((pedido) => (
-              <tr key={pedido.id}>
-                <td>{pedido.address}</td>
-                <td>{pedido.lat}</td>
-                <td>{pedido.lng}</td>
-                <td>{pedido.volume}</td>
-                <td>{pedido.assigned_to}</td>
-                <td>
-                  <span className={`badge bg-${getStatusBadgeClass(pedido.status)}`}>
-                    {getStatusText(pedido.status)}
-                  </span>
-                </td>
-                <td>{new Date(pedido.scheduled_at).toLocaleString()}</td>
-                <td>
-                  <div className="btn-group">
-                    <button 
-                      className="btn btn-sm btn-primary me-1" 
-                      onClick={() => onEdit(pedido)}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-danger" 
-                      onClick={() => onDelete(pedido.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
+            {pedidosValidos.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="text-center text-muted">
+                  No hay pedidos disponibles.
                 </td>
               </tr>
-            ))}
+            ) : (
+              pedidosValidos.map((pedido) => (
+                <tr key={pedido.id}>
+                  <td>{pedido.address}</td>
+                  <td>{pedido.lat}</td>
+                  <td>{pedido.lng}</td>
+                  <td>{pedido.volume}</td>
+                  <td>{pedido.assigned_to}</td>
+                  <td>
+                    <span className={`badge bg-${getStatusBadgeClass(pedido.status)}`}>
+                      {getStatusText(pedido.status)}
+                    </span>
+                  </td>
+                  <td>{new Date(pedido.scheduled_at).toLocaleString()}</td>
+                  <td>
+                    <div className="btn-group">
+                      <button
+                        className="btn btn-sm btn-primary me-1"
+                        onClick={() => onEdit(pedido)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => onDelete(pedido.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

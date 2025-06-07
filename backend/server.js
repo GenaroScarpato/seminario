@@ -1,6 +1,7 @@
 // server.js
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Pool } = require('pg'); // PostgreSQL
 
 class Server {
@@ -41,6 +42,10 @@ class Server {
     }
 
     cargarMiddlewares() {
+        // Servir archivos estáticos desde la carpeta uploads
+        this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+        
+        // Configuración de CORS
         this.app.use(cors({
             origin: (origin, callback) => {
                 const allowlist = ['http://localhost:5173', 'http://192.168.0.231:5173'];
@@ -77,6 +82,7 @@ class Server {
         this.app.use("/api/pedidos", require('./routes/pedidos'));
         this.app.use("/api/rutas", require('./routes/rutas'));
         this.app.use("/api/feedback", require('./routes/feedback'));
+        this.app.use("/api/conductores", require('./routes/conductores'));
 
         console.log('🛣️ Rutas cargadas');
     }

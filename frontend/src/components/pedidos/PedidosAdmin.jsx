@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import PedidoTable from './PedidoTable';
 import PedidoForm from './PedidoForm';
 import axios from 'axios';
+import { API_BASE_URL, API_ROUTES } from '@config/api';
 
 const PedidosAdmin = () => {
   const [pedidos, setPedidos] = useState([]);
-  const [selectedPedido, setSelectedPedido] = useState(null);
+  const [selectedPedido, setSelectedPedido] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
   const fetchPedidos = async () => {
     try {
-      const response = await axios.get('/api/pedidos');
+      const response = await axios.get(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
       setPedidos(response.data);
     } catch (error) {
       console.error('Error al cargar pedidos:', error);

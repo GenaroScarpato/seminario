@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
-const DriverForm = ({ onSubmit, driver, vehicles }) => {
+const DriverForm = ({ onSubmit, driver, vehicles, onError }) => {
   const [formData, setFormData] = useState({
     nombre: driver?.nombre || '',
-    dni: driver?.dni || '',
+    apellido: driver?.apellido || '',
     telefono: driver?.telefono || '',
     email: driver?.email || '',
-    estado: driver?.estado || 'activo',
-    vehiculo_asignado: driver?.vehiculo_asignado || null,
-    licencia: null
+    licencia: driver?.licencia || '',
+    estado: driver?.estado || 'disponible',
+    tipo_archivo: 'documento'
   });
 
-  const [file, setFile] = useState(driver?.licencia || null);
+  const [file, setFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,13 +35,53 @@ const DriverForm = ({ onSubmit, driver, vehicles }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.nombre) newErrors.nombre = 'El nombre es requerido';
+    if (!formData.email) {
+      newErrors.email = 'El email es requerido';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'El formato del email no es válido';
+    }
+    if (!formData.licencia && !file) newErrors.licencia = 'La licencia es requerida';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setErrors({});
+    
+    try {
+      const formDataToSend = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+      
+      if (file) {
+        formDataToSend.append('archivo', file);
+      }
+      
+      await onSubmit(formDataToSend);
+    } catch (error) {
+      console.error('Error al guardar el conductor:', error);
+      onError?.(error.response?.data?.error || 'Error al guardar el conductor');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="needs-validation" noValidate>
+    <form onSubmit={handleSubmit} className="needs-validation" noValidate encType="multipart/form-data">
       <div className="row">
         <div className="col-md-6 mb-3">
           <label htmlFor="nombre" className="form-label">Nombre Completo *</label>
@@ -54,16 +97,16 @@ const DriverForm = ({ onSubmit, driver, vehicles }) => {
         </div>
 
         <div className="col-md-6 mb-3">
-          <label htmlFor="dni" className="form-label">DNI *</label>
+          <label htmlFor="apellido" className="form-label">Apellido</label>
           <input
             type="text"
             className="form-control"
-            id="dni"
-            name="dni"
-            value={formData.dni}
+            id="apellido"
+            name="apellido"
+            value={formData.apellido}
             onChange={handleChange}
-            required
           />
+          {errors.apellido && <div className="invalid-feedback d-block">{errors.apellido}</div>}
         </div>
 
         <div className="col-md-6 mb-3">
@@ -102,68 +145,68 @@ const DriverForm = ({ onSubmit, driver, vehicles }) => {
             onChange={handleChange}
             required
           >
-            <option value="activo">Activo</option>
+            <option value="disponible">Disponible</option>
+            <option value="ocupado">Ocupado</option>
             <option value="inactivo">Inactivo</option>
-            <option value="suspendido">Suspendido</option>
           </select>
         </div>
 
         <div className="col-md-6 mb-3">
-          <label htmlFor="vehiculo" className="form-label">Vehículo Asignado</label>
-          <select
-            className="form-select"
-            id="vehiculo"
-            name="vehiculo_asignado"
-            value={formData.vehiculo_asignado || ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFormData(prev => ({
-                ...prev,
-                vehiculo_asignado: value ? parseInt(value) : null
-              }));
-            }}
-          >
-            <option value="">Sin vehículo</option>
-            {vehicles.map(vehicle => (
-              <option key={vehicle.id} value={vehicle.id}>
-                {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="licencia" className="form-label">Número de Licencia *</label>
+          <input
+            type="text"
+            className="form-control"
+            id="licencia"
+            name="licencia"
+            value={formData.licencia}
+            onChange={handleChange}
+            required
+          />
+          {errors.licencia && <div className="invalid-feedback d-block">{errors.licencia}</div>}
         </div>
 
         <div className="col-md-12 mb-3">
-          <label htmlFor="licencia" className="form-label">Licencia de Conducir (PDF)</label>
+          <label htmlFor="archivo" className="form-label">Documento de Licencia (Opcional)</label>
           <input
             type="file"
             className="form-control"
-            id="licencia"
-            accept=".pdf"
+            id="archivo"
+            name="archivo"
+            accept=".pdf,.png,.jpg,.jpeg"
             onChange={handleFileChange}
           />
+          <div className="form-text">Puedes subir una imagen o PDF de la licencia (máx. 10MB)</div>
           {file && (
             <div className="mt-2">
               <p className="mb-1">Archivo seleccionado: {file.name}</p>
               <button
                 type="button"
                 className="btn btn-sm btn-danger"
-                onClick={() => {
-                  setFile(null);
-                  setFormData(prev => ({
-                    ...prev,
-                    licencia: null
-                  }));
-                }}
+                onClick={() => setFile(null)}
               >
                 Remover archivo
               </button>
             </div>
           )}
+          {errors.archivo && <div className="invalid-feedback d-block">{errors.archivo}</div>}
         </div>
 
         <div className="col-12">
-          <button type="submit" className="btn btn-primary">
-            {driver ? 'Actualizar' : 'Crear'} Conductor
+          <button 
+            type="submit" 
+            className="btn btn-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Procesando...
+              </>
+            ) : driver ? (
+              'Actualizar Conductor'
+            ) : (
+              'Crear Conductor'
+            )}
           </button>
         </div>
       </div>

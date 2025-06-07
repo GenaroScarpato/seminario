@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, API_ROUTES } from '../../config/api';
+import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL, API_ROUTES } from '@config/api';
+import { Button } from 'react-bootstrap';
+import { FaPlus } from 'react-icons/fa';
 import DriverForm from './DriverForm';
 import DriverFilters from './DriverFilters';
 import DriverHistory from './DriverHistory';
 import DriverDocuments from './DriverDocuments';
 
 const DriversAdmin = () => {
+  const navigate = useNavigate();
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -21,22 +25,55 @@ const DriversAdmin = () => {
 
   const fetchDrivers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.DRIVERS.ALL}`);
-      const data = await response.json();
-      setDrivers(data);
+      console.log('Solicitando conductores a:', `${API_BASE_URL}${API_ROUTES.DRIVERS.ALL}`);
+      const response = await fetch(`${API_BASE_URL}${API_ROUTES.DRIVERS.ALL}`, {
+        credentials: 'include' // Incluir credenciales para manejar sesiones
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || 
+          `Error al cargar los conductores: ${response.status} ${response.statusText}`
+        );
+      }
+      
+      const result = await response.json();
+      
+      // Asegurarse de que data sea un array
+      const driversData = Array.isArray(result) ? result : (Array.isArray(result.data) ? result.data : []);
+      console.log('Conductores cargados:', driversData);
+      setDrivers(driversData);
     } catch (error) {
       console.error('Error al cargar conductores:', error);
-      alert('Error al cargar los conductores. Por favor, inténtalo de nuevo.');
+      alert(error.message || 'Error al cargar los conductores. Por favor, inténtalo de nuevo.');
+      setDrivers([]); // Asegurar que drivers sea un array vacío en caso de error
     }
   };
 
   const fetchVehicles = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
-      const data = await response.json();
-      setVehicles(data);
+      console.log('Solicitando vehículos a:', `${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
+      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`, {
+        credentials: 'include' // Incluir credenciales para manejar sesiones
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || 
+          `Error al cargar los vehículos: ${response.status} ${response.statusText}`
+        );
+      }
+      
+      const result = await response.json();
+      const vehiclesData = Array.isArray(result) ? result : [];
+      console.log('Vehículos cargados:', vehiclesData);
+      setVehicles(vehiclesData);
     } catch (error) {
       console.error('Error al cargar vehículos:', error);
+      // No mostramos alerta para no molestar con errores secundarios
+      setVehicles([]);
     }
   };
 
@@ -114,9 +151,14 @@ const DriversAdmin = () => {
 
   // Filter drivers
   const filteredDrivers = drivers.filter(driver => {
-    const matchesName = driver.nombre.toLowerCase().includes(searchName.toLowerCase());
-    const matchesEstado = selectedEstado === 'todos' || driver.estado === selectedEstado;
-    const matchesVehicle = !selectedVehicle || driver.vehiculo_asignado === selectedVehicle.id;
+    const driverName = driver.nombre || '';
+    const driverEstado = driver.estado || '';
+    const driverVehiculoId = driver.vehiculo_asignado || '';
+    
+    const matchesName = driverName.toString().toLowerCase().includes(searchName.toLowerCase());
+    const matchesEstado = selectedEstado === 'todos' || driverEstado === selectedEstado;
+    const matchesVehicle = !selectedVehicle || driverVehiculoId === selectedVehicle.id;
+    
     return matchesName && matchesEstado && matchesVehicle;
   });
 
@@ -126,9 +168,12 @@ const DriversAdmin = () => {
         <div className="d-flex align-items-center gap-3">
           <h2>Administración de Conductores</h2>
         </div>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          Nuevo Conductor
-        </button>
+        <Button 
+          variant="primary" 
+          onClick={() => navigate('/admin/conductores/nuevo')}
+        >
+          <FaPlus className="me-2" /> Nuevo Conductor
+        </Button>
       </div>
 
       <div className="row mb-4">
@@ -159,55 +204,79 @@ const DriversAdmin = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredDrivers.map((driver) => (
-              <tr key={driver.id}>
-                <td>{driver.nombre}</td>
-                <td>{driver.dni}</td>
-                <td>{driver.telefono}</td>
-                <td>{driver.email}</td>
-                <td>
-                  <select
-                    value={driver.estado}
-                    onChange={(e) => handleUpdateDriver({ ...driver, estado: e.target.value })}
-                    className="form-select form-select-sm"
-                  >
-                    <option value="activo">Activo</option>
-                    <option value="inactivo">Inactivo</option>
-                    <option value="suspendido">Suspendido</option>
-                  </select>
-                </td>
-                <td>
-                  {driver.vehiculo_asignado ? 
-                    vehicles.find(v => v.id === driver.vehiculo_asignado)?.patente : 'Sin vehículo'}
-                </td>
-                <td>
-                  <button 
-                    className="btn btn-primary btn-sm me-1"
-                    onClick={() => handleOpenModal(driver)}
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    className="btn btn-info btn-sm me-1"
-                    onClick={() => handleViewHistory(driver.id)}
-                  >
-                    Historial
-                  </button>
-                  <button 
-                    className="btn btn-success btn-sm me-1"
-                    onClick={() => handleViewDocuments(driver.id)}
-                  >
-                    Documentos
-                  </button>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteDriver(driver.id)}
-                  >
-                    Eliminar
-                  </button>
+            {Array.isArray(filteredDrivers) && filteredDrivers.length > 0 ? (
+              filteredDrivers.map((driver) => {
+                if (!driver || !driver.id) return null; // Saltar conductores inválidos
+                
+                const vehicleInfo = driver.vehiculo_asignado 
+                  ? vehicles.find(v => v && v.id === driver.vehiculo_asignado)?.patente 
+                  : 'Sin vehículo';
+                
+                return (
+                  <tr key={`driver-${driver.id}`}>
+                    <td>{driver.nombre || 'N/A'}</td>
+                    <td>{driver.dni || 'N/A'}</td>
+                    <td>{driver.telefono || 'N/A'}</td>
+                    <td>{driver.email || 'N/A'}</td>
+                    <td>
+                      <select
+                        value={driver.estado || 'activo'}
+                        onChange={(e) => handleUpdateDriver({ ...driver, estado: e.target.value })}
+                        className="form-select form-select-sm"
+                        aria-label="Estado del conductor"
+                      >
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                        <option value="suspendido">Suspendido</option>
+                      </select>
+                    </td>
+                    <td>{vehicleInfo}</td>
+                    <td>
+                      <div className="btn-group" role="group" aria-label="Acciones del conductor">
+                        <button 
+                          type="button"
+                          className="btn btn-primary btn-sm me-1"
+                          onClick={() => handleOpenModal(driver)}
+                          aria-label={`Editar ${driver.nombre || 'conductor'}`}
+                        >
+                          Editar
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn btn-info btn-sm me-1"
+                          onClick={() => handleViewHistory(driver.id)}
+                          aria-label={`Ver historial de ${driver.nombre || 'conductor'}`}
+                        >
+                          Historial
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn btn-success btn-sm me-1"
+                          onClick={() => handleViewDocuments(driver.id)}
+                          aria-label={`Ver documentos de ${driver.nombre || 'conductor'}`}
+                        >
+                          Documentos
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteDriver(driver.id)}
+                          aria-label={`Eliminar ${driver.nombre || 'conductor'}`}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center">
+                  No se encontraron conductores
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

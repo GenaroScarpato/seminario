@@ -1,5 +1,5 @@
 exports.getAll = async (pool) => {
-  const result = await pool.query('SELECT * FROM orders ORDER BY id');
+  const result = await pool.query('SELECT * FROM pedidos ORDER BY id');
   return result.rows;
 };
 
@@ -15,7 +15,7 @@ exports.create = async (pool, data) => {
   } = data;
   
   const query = `
-    INSERT INTO orders (address, lat, lng, volume, assigned_to, status, scheduled_at)
+    INSERT INTO pedidos (address, lat, lng, volume, assigned_to, status, scheduled_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
@@ -37,7 +37,7 @@ exports.update = async (pool, id, data) => {
   } = data;
 
   const query = `
-    UPDATE orders SET
+    UPDATE pedidos SET
       address = $1,
       lat = $2,
       lng = $3,
@@ -55,5 +55,5 @@ exports.update = async (pool, id, data) => {
 };
 
 exports.delete = async (pool, id) => {
-  await pool.query('DELETE FROM orders WHERE id = $1', [id]);
+  await pool.query('DELETE FROM pedidos WHERE id = $1', [id]);
 };
