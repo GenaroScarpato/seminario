@@ -1,116 +1,166 @@
-const db = require('../models');
-const { Op } = require('sequelize');
+// controllers/conductorController.js
+const conductorModel = require('../models/conductores');
+
+const handleError = (res, error) => {
+  console.error(error);
+
+  // Error de validación personalizada
+  if (error.isJoi) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  // Errores Postgres comunes
+  if (error.code) {
+    switch (error.code) {
+      case '23505': // violación de clave única
+        if (error.detail.includes('email')) {
+          return res.status(409).json({ message: 'El correo electrónico ya está registrado' });
+        }
+        if (error.detail.includes('dni')) {
+          return res.status(409).json({ message: 'El DNI ya está registrado' });
+        }
+        if (error.detail.includes('url_licencia')) {
+          return res.status(409).json({ message: 'El número de licencia ya está registrado' });
+        }
+        return res.status(409).json({ message: 'Dato duplicado' });
+
+      case '23502': // valor nulo en columna no nula
+        return res.status(400).json({ message: `Falta un campo obligatorio: ${error.column}` });
+
+      case '22001': // valor demasiado largo para columna
+        return res.status(400).json({ message: `Valor demasiado largo para el campo: ${error.column}` });
+
+      default:
+        return res.status(500).json({ message: 'Error de base de datos' });
+    }
+  }
+
+  // Otros errores no manejados
+  return res.status(500).json({ message: 'Error interno del servidor' });
+};
 
 exports.getAll = async (req, res) => {
   try {
-    const conductores = await db.Conductor.findAll({
-      include: [
-        {
-          model: db.Vehiculo,
-          as: 'vehiculo_asignado',
-          required: false
-        }
-      ]
-    });
+    const conductores = await conductorModel.getAllConductores(req.pool);
     res.json(conductores);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
 exports.create = async (req, res) => {
   try {
-    const conductor = await db.Conductor.create(req.body);
-    res.status(201).json(conductor);
+    const { 
+      nombre, 
+      apellido, 
+      dni, 
+      email, 
+      telefono, 
+      url_licencia, 
+      estado = 'disponible',
+      direccion 
+    } = req.body;
+
+    // Validación de campos requeridos
+    if (!nombre || !dni || !email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Faltan campos requeridos: nombre, dni y email son obligatorios' 
+      });
+    }
+
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'El formato del correo electrónico no es válido'
+      });
+    }
+
+    const conductor = await conductorModel.createConductor(req.pool, {
+      nombre,
+      apellido: apellido || null,
+      dni,
+      email,
+      telefono: telefono || null,
+      url_licencia: url_licencia || null,
+      estado,
+      direccion: direccion || null
+    });
+    
+    res.status(201).json({
+      success: true,
+      data: conductor
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error en controlador create:', error);
+    handleError(res, error);
   }
 };
 
 exports.update = async (req, res) => {
   try {
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
-    await conductor.update(req.body);
-    res.json(conductor);
+    const updated = await conductorModel.updateConductor(req.pool, req.params.id, req.body);
+    res.json(updated);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
 exports.delete = async (req, res) => {
   try {
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
-    await conductor.destroy();
+    await conductorModel.deleteConductor(req.pool, req.params.id);
     res.json({ message: 'Conductor eliminado' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
 exports.getHistory = async (req, res) => {
   try {
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
-    const historial = await db.Ruta.findAll({
-      where: { conductor_id: req.params.id },
-      include: [
-        {
-          model: db.Cliente,
-          as: 'cliente'
-        },
-        {
-          model: db.Vehiculo,
-          as: 'vehiculo'
-        }
-      ]
-    });
+    const historial = await conductorModel.getHistory(req.pool, req.params.id);
     res.json(historial);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
 exports.getFeedback = async (req, res) => {
   try {
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
-    const feedback = await db.Feedback.findAll({
-      where: { conductor_id: req.params.id },
-      include: [
-        {
-          model: db.Cliente,
-          as: 'cliente'
-        }
-      ]
-    });
+    const feedback = await conductorModel.getFeedback(req.pool, req.params.id);
     res.json(feedback);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
 exports.getDocuments = async (req, res) => {
   try {
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
-    const documentos = await db.Documento.findAll({
-      where: { conductor_id: req.params.id }
-    });
+    const documentos = await conductorModel.getDocuments(req.pool, req.params.id);
     res.json(documentos);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -120,19 +170,18 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ message: 'No se subió ningún archivo' });
     }
 
-    const conductor = await db.Conductor.findByPk(req.params.id);
+    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
 
-    const documento = await db.Documento.create({
+    const documento = await conductorModel.uploadDocument(req.pool, req.params.id, {
       ...req.body,
-      conductor_id: req.params.id,
       url: `/uploads/${req.file.filename}`
     });
 
     res.status(201).json(documento);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    handleError(res, error);
   }
 };

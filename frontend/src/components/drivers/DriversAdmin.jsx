@@ -25,7 +25,6 @@ const DriversAdmin = () => {
 
   const fetchDrivers = async () => {
     try {
-      console.log('Solicitando conductores a:', `${API_BASE_URL}${API_ROUTES.DRIVERS.ALL}`);
       const response = await fetch(`${API_BASE_URL}${API_ROUTES.DRIVERS.ALL}`, {
         credentials: 'include' // Incluir credenciales para manejar sesiones
       });
@@ -42,7 +41,6 @@ const DriversAdmin = () => {
       
       // Asegurarse de que data sea un array
       const driversData = Array.isArray(result) ? result : (Array.isArray(result.data) ? result.data : []);
-      console.log('Conductores cargados:', driversData);
       setDrivers(driversData);
     } catch (error) {
       console.error('Error al cargar conductores:', error);
@@ -68,7 +66,6 @@ const DriversAdmin = () => {
       
       const result = await response.json();
       const vehiclesData = Array.isArray(result) ? result : [];
-      console.log('Vehículos cargados:', vehiclesData);
       setVehicles(vehiclesData);
     } catch (error) {
       console.error('Error al cargar vehículos:', error);
@@ -170,14 +167,14 @@ const DriversAdmin = () => {
         </div>
         <Button 
           variant="primary" 
-          onClick={() => navigate('/admin/conductores/nuevo')}
+          onClick={() => handleOpenModal()}
         >
           <FaPlus className="me-2" /> Nuevo Conductor
         </Button>
       </div>
 
-      <div className="row mb-4">
-        <div className="col-md-4">
+      <div className="row mb-3">
+        <div className="col-12">
           <DriverFilters
             selectedEstado={selectedEstado}
             onEstadoChange={setSelectedEstado}

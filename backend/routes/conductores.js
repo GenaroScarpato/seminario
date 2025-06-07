@@ -3,19 +3,18 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
+const conductorController = require('../controllers/conductores');
 
 // Configuración de multer para subir archivos
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(__dirname, '../uploads/conductores');
-        // Crear el directorio si no existe
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
         cb(null, dir);
     },
     filename: (req, file, cb) => {
-        // Usar un nombre único para evitar colisiones
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + '-' + file.originalname);
     }
@@ -30,15 +29,14 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: { 
-        fileSize: 10 * 1024 * 1024, // Límite de 10MB
-        files: 1 // Solo permitir un archivo a la vez
+        fileSize: 10 * 1024 * 1024, // 10MB
+        files: 1
     }
 });
 
 // Middleware para manejar errores de multer
 const handleMulterError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        // Un error de Multer al cargar
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
@@ -55,42 +53,35 @@ const handleMulterError = (err, req, res, next) => {
                 error: 'Campo de archivo no esperado. Asegúrate de que el campo del formulario se llame "archivo".'
             });
         } else {
-            // Otros errores de multer
             return res.status(400).json({
                 success: false,
                 error: `Error al cargar el archivo: ${err.message}`
             });
         }
     } else if (err) {
-        // Un error del fileFilter u otro error
         return res.status(400).json({
             success: false,
             error: err.message || 'Error al procesar el archivo.'
         });
     }
-    
-    // Si no hay errores, pasar al siguiente middleware
     next();
 };
 
-// Ruta de diagnóstico para verificar la estructura de la tabla
+// Ruta para diagnóstico estructura tabla conductores
 router.get('/debug/estructura', async (req, res) => {
     try {
-        // Obtener información de columnas
         const columnas = await req.pool.query(`
             SELECT column_name, data_type, is_nullable, column_default
             FROM information_schema.columns 
             WHERE table_name = 'conductores';
         `);
 
-        // Obtener restricciones
         const restricciones = await req.pool.query(`
             SELECT conname, contype, pg_get_constraintdef(oid) as definicion
             FROM pg_constraint 
             WHERE conrelid = 'conductores'::regclass;
         `);
 
-        // Obtener índices
         const indices = await req.pool.query(`
             SELECT indexname, indexdef 
             FROM pg_indexes 
@@ -117,10 +108,8 @@ router.get('/debug/estructura', async (req, res) => {
 router.get('/', async (req, res) => {
     let client;
     try {
-        // Obtener un cliente del pool
         client = await req.pool.connect();
-        
-        // Verificar si la tabla existe
+
         const tableExists = await client.query(
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conductores')"
         );
@@ -134,8 +123,7 @@ router.get('/', async (req, res) => {
                 code: 'TABLE_NOT_FOUND'
             });
         }
-        
-        // Obtener los conductores con la estructura simplificada
+
         const result = await client.query(`
             SELECT 
                 id, 
@@ -143,186 +131,233 @@ router.get('/', async (req, res) => {
                 COALESCE(apellido, '') as apellido, 
                 email, 
                 COALESCE(telefono, '') as telefono,
-                COALESCE(licencia, '') as licencia, 
-                COALESCE(estado, 'disponible') as estado,
-                COALESCE(archivo_url, '') as archivo_url,
-                COALESCE(tipo_archivo, 'documento') as tipo_archivo,
-                TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
-                TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
+                COALESCE(url_licencia, '') as url_licencia, 
+                COALESCE(estado, 'disponible') as estado
             FROM conductores 
             ORDER BY nombre, apellido NULLS LAST
         `);
-        
+
         res.status(200).json({
             success: true,
             count: result.rowCount,
             data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Error al obtener conductores:', error);
-        
-        // Manejar errores específicos de PostgreSQL
+
         let statusCode = 500;
         let errorMessage = 'Error al obtener los conductores';
         let errorCode = 'INTERNAL_SERVER_ERROR';
-        
-        if (error.code === '42P01') { // Tabla no existe
+
+        if (error.code === '42P01') { 
             statusCode = 500;
             errorMessage = 'La tabla de conductores no está configurada correctamente';
             errorCode = 'TABLE_NOT_FOUND';
-        } else if (error.code === '42P07') { // Tabla duplicada
+        } else if (error.code === '42P07') {
             statusCode = 500;
             errorMessage = 'Conflicto en la base de datos';
             errorCode = 'DUPLICATE_TABLE';
         }
-        
+
         res.status(statusCode).json({ 
             success: false,
             error: errorMessage,
-            details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
             code: errorCode
         });
-        
+
     } finally {
-        // Liberar el cliente de vuelta al pool
-        if (client) {
-            client.release();
-        }
+        if (client) client.release();
     }
 });
 
-// Crear un nuevo conductor con manejo de archivos simplificado
-router.post('/', upload.single('archivo'), handleMulterError, async (req, res) => {
+router.post('/', (req, res) => {
+    conductorController.create(req, res);
+});
+
+// Obtener un conductor por ID
+router.get('/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await req.pool.query(
+            `SELECT 
+                id, nombre, COALESCE(apellido, '') as apellido, email, COALESCE(telefono, '') as telefono,
+                COALESCE(url_licencia, '') as url_licencia, estado, archivo_url, tipo_archivo,
+                TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+                TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
+            FROM conductores WHERE id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Conductor no encontrado'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error al obtener conductor por ID:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener el conductor'
+        });
+    }
+});
+
+// Actualizar conductor por ID
+router.put('/:id', upload.single('archivo'), handleMulterError, async (req, res) => {
+    const { id } = req.params;
     const { 
         nombre, 
         apellido, 
         email, 
         telefono, 
-        licencia, 
-        estado = 'disponible',
-        tipo_archivo = 'documento'
+        url_licencia, 
+        estado,
+        tipo_archivo
     } = req.body;
-    
-    // Obtener la URL del archivo si se subió uno
-    const archivo_url = req.file ? `/uploads/conductores/${req.file.filename}` : '';
-    
-    // Validar campos requeridos
-    const camposRequeridos = ['nombre', 'email', 'licencia'];
-    const camposFaltantes = camposRequeridos.filter(campo => !req.body[campo]);
-    
-    if (camposFaltantes.length > 0) {
-        // Eliminar el archivo subido si hay un error de validación
+
+    let archivo_url = undefined;
+    if (req.file) {
+        archivo_url = `/uploads/conductores/${req.file.filename}`;
+    }
+
+    if (!nombre || !email || !url_licencia) {
         if (req.file) {
-            fs.unlink(req.file.path, (err) => {
+            fs.unlink(req.file.path, err => {
                 if (err) console.error('Error al eliminar archivo temporal:', err);
             });
         }
-        
         return res.status(400).json({
             success: false,
-            error: `Faltan campos requeridos: ${camposFaltantes.join(', ')}`
+            error: 'Los campos nombre, email y url_licencia son obligatorios'
         });
     }
-    
-    // Validar formato de email
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        // Eliminar el archivo subido si hay un error de validación
         if (req.file) {
-            fs.unlink(req.file.path, (err) => {
+            fs.unlink(req.file.path, err => {
                 if (err) console.error('Error al eliminar archivo temporal:', err);
             });
         }
-        
         return res.status(400).json({
             success: false,
             error: 'El formato del correo electrónico no es válido'
         });
     }
-    
+
     let client;
     try {
         client = await req.pool.connect();
         await client.query('BEGIN');
-        
-        // Validar que el email no esté ya registrado
+
+        // Verificar si email o url_licencia ya están usados por otro conductor distinto a este
         const emailExistente = await client.query(
-            'SELECT id FROM conductores WHERE email = $1', 
-            [email]
+            'SELECT id FROM conductores WHERE email = $1 AND id <> $2',
+            [email, id]
         );
-        
         if (emailExistente.rows.length > 0) {
             await client.query('ROLLBACK');
-            // Eliminar el archivo subido si el email ya existe
             if (req.file) {
-                fs.unlink(req.file.path, (err) => {
+                fs.unlink(req.file.path, err => {
                     if (err) console.error('Error al eliminar archivo temporal:', err);
                 });
             }
-            
             return res.status(409).json({
                 success: false,
-                error: 'El correo electrónico ya está registrado'
+                error: 'El correo electrónico ya está registrado por otro conductor'
             });
         }
-        
-        // Validar que la licencia no esté ya registrada
+
         const licenciaExistente = await client.query(
-            'SELECT id FROM conductores WHERE licencia = $1',
-            [licencia]
+            'SELECT id FROM conductores WHERE url_licencia = $1 AND id <> $2',
+            [url_licencia, id]
         );
-        
         if (licenciaExistente.rows.length > 0) {
             await client.query('ROLLBACK');
-            // Eliminar el archivo subido si la licencia ya existe
             if (req.file) {
-                fs.unlink(req.file.path, (err) => {
+                fs.unlink(req.file.path, err => {
                     if (err) console.error('Error al eliminar archivo temporal:', err);
                 });
             }
-            
             return res.status(409).json({
                 success: false,
-                error: 'El número de licencia ya está registrado'
+                error: 'El número de licencia ya está registrado por otro conductor'
             });
         }
-        
-        // Insertar el nuevo conductor
-        const query = `
-            INSERT INTO conductores (
-                nombre, apellido, email, telefono, licencia, 
-                estado, archivo_url, tipo_archivo
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+
+        // Obtener conductor actual para eliminar archivo viejo si hay cambio
+        const conductorActual = await client.query(
+            'SELECT archivo_url FROM conductores WHERE id = $1',
+            [id]
+        );
+
+        if (conductorActual.rows.length === 0) {
+            await client.query('ROLLBACK');
+            if (req.file) {
+                fs.unlink(req.file.path, err => {
+                    if (err) console.error('Error al eliminar archivo temporal:', err);
+                });
+            }
+            return res.status(404).json({
+                success: false,
+                error: 'Conductor no encontrado'
+            });
+        }
+
+        if (archivo_url && conductorActual.rows[0].archivo_url) {
+            // Eliminar archivo viejo
+            const archivoViejoPath = path.join(__dirname, '..', conductorActual.rows[0].archivo_url);
+            fs.unlink(archivoViejoPath, (err) => {
+                if (err) console.error('Error al eliminar archivo antiguo:', err);
+            });
+        }
+
+        const updateQuery = `
+            UPDATE conductores SET
+                nombre = $1,
+                apellido = $2,
+                email = $3,
+                telefono = $4,
+                url_licencia = $5,
+                estado = $6,
+                tipo_archivo = $7
+                ${archivo_url ? ', archivo_url = $8' : ''}
+            WHERE id = $9
             RETURNING *
         `;
-        
+
         const values = [
             nombre,
             apellido || null,
             email,
             telefono || null,
-            licencia,
-            estado,
-            archivo_url,
-            tipo_archivo
+            url_licencia,
+            estado || 'disponible',
+            tipo_archivo || 'documento'
         ];
-        
-        const result = await client.query(query, values);
-        
-        // Confirmar transacción
+
+        if (archivo_url) values.push(archivo_url);
+        values.push(id);
+
+        const result = await client.query(updateQuery, values);
         await client.query('COMMIT');
-        
-        res.status(201).json({
+
+        res.status(200).json({
             success: true,
             data: result.rows[0],
-            message: 'Conductor creado exitosamente'
+            message: 'Conductor actualizado exitosamente'
         });
-        
+
     } catch (error) {
-        console.error('Error al crear conductor:', error);
-        
-        // Revertir transacción si hay un cliente activo
+        console.error('Error al actualizar conductor:', error);
         if (client) {
             try {
                 await client.query('ROLLBACK');
@@ -330,109 +365,76 @@ router.post('/', upload.single('archivo'), handleMulterError, async (req, res) =
                 console.error('Error al hacer rollback:', rollbackError);
             }
         }
-        
-        // Eliminar archivo subido en caso de error
         if (req.file && req.file.path) {
-            fs.unlink(req.file.path, (err) => {
+            fs.unlink(req.file.path, err => {
                 if (err) console.error('Error al eliminar archivo temporal:', err);
             });
         }
-        
-        // Manejar errores específicos de PostgreSQL
-        if (error.code === '23505') { // Violación de restricción única
-            const detail = error.detail || '';
-            let message = 'Error de validación: ';
-            
-            if (detail.includes('email')) {
-                message = 'El correo electrónico ya está registrado';
-            } else if (detail.includes('licencia')) {
-                message = 'El número de licencia ya está registrado';
-            } else {
-                message = 'El registro ya existe';
-            }
-            
-            return res.status(409).json({ 
-                success: false,
-                error: message 
-            });
-        } else if (error.code === '23502') { // Violación de NOT NULL
-            return res.status(400).json({
-                success: false,
-                error: 'Faltan campos requeridos en la base de datos',
-                details: error.column ? `Campo requerido: ${error.column}` : undefined
-            });
-        }
-        
-        // Error genérico
-        console.error('Error en la base de datos:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            error: 'Error al crear el conductor',
+            error: 'Error al actualizar el conductor',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     } finally {
-        // Liberar el cliente de vuelta al pool
-        if (client) {
-            client.release();
-        }
+        if (client) client.release();
     }
 });
 
-// Obtener un conductor por ID
-router.get('/:id', async (req, res) => {
-    const { id } = req.params;
-    
-    try {
-        const result = await req.pool.query('SELECT * FROM conductores WHERE id = $1', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Conductor no encontrado' });
-        }
-        
-        res.status(200).json(result.rows[0]);
-    } catch (error) {
-        console.error('Error al obtener conductor:', error);
-        res.status(500).json({ error: 'Error al obtener el conductor' });
-    }
-});
-
-// Actualizar un conductor
-router.put('/:id', async (req, res) => {
-    const { id } = req.params;
-    const { nombre, apellido, email, telefono, licencia, estado } = req.body;
-    
-    try {
-        const result = await req.pool.query(
-            'UPDATE conductores SET nombre = $1, apellido = $2, email = $3, telefono = $4, licencia = $5, estado = $6, updated_at = NOW() WHERE id = $7 RETURNING *',
-            [nombre, apellido, email, telefono, licencia, estado, id]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Conductor no encontrado' });
-        }
-        
-        res.status(200).json(result.rows[0]);
-    } catch (error) {
-        console.error('Error al actualizar conductor:', error);
-        res.status(500).json({ error: 'Error al actualizar el conductor' });
-    }
-});
-
-// Eliminar un conductor
+// Eliminar conductor por ID
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
-    
+    let client;
     try {
-        const result = await req.pool.query('DELETE FROM conductores WHERE id = $1 RETURNING *', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Conductor no encontrado' });
+        client = await req.pool.connect();
+        await client.query('BEGIN');
+
+        // Obtener conductor para eliminar archivo
+        const conductor = await client.query(
+            'SELECT archivo_url FROM conductores WHERE id = $1',
+            [id]
+        );
+
+        if (conductor.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                error: 'Conductor no encontrado'
+            });
         }
-        
-        res.status(200).json({ message: 'Conductor eliminado correctamente' });
+
+        // Eliminar conductor
+        await client.query('DELETE FROM conductores WHERE id = $1', [id]);
+
+        await client.query('COMMIT');
+
+        // Eliminar archivo si existe
+        if (conductor.rows[0].archivo_url) {
+            const archivoPath = path.join(__dirname, '..', conductor.rows[0].archivo_url);
+            fs.unlink(archivoPath, (err) => {
+                if (err) console.error('Error al eliminar archivo asociado:', err);
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Conductor eliminado exitosamente'
+        });
+
     } catch (error) {
         console.error('Error al eliminar conductor:', error);
-        res.status(500).json({ error: 'Error al eliminar el conductor' });
+        if (client) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackError) {
+                console.error('Error al hacer rollback:', rollbackError);
+            }
+        }
+        res.status(500).json({
+            success: false,
+            error: 'Error al eliminar el conductor'
+        });
+    } finally {
+        if (client) client.release();
     }
 });
 
