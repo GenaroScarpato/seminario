@@ -6,6 +6,7 @@ import PedidosAdmin from '@/components/pedidos/PedidosAdmin';
 import VehiclesAdmin from '@/components/vehicles/VehiclesAdmin';
 import DriversAdmin from '@/components/drivers/DriversAdmin';
 import CreateDriver from '@/pages/drivers/CreateDriver';
+import Dashboard from './components/Dashboard';
 
 const AdminDashboard = () => (
   <div className="container mt-5">
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="pedidos" element={<PedidosAdmin />} />
           <Route path="vehiculos" element={<VehiclesAdmin />} />
           <Route path="conductores" element={<DriversAdmin />} />

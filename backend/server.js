@@ -42,9 +42,7 @@ class Server {
     }
 
     cargarMiddlewares() {
-        // Servir archivos estáticos desde la carpeta uploads
-        this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-        
+                
         // Configuración de CORS
         this.app.use(cors({
             origin: (origin, callback) => {

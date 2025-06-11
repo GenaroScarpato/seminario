@@ -1,15 +1,16 @@
+// controllers/pedidos.js
 const pedidosModel = require('../models/pedidos');
 
-exports.getPedidos = async (req, res) => {
+async function getPedidos(req, res) {
   try {
     const pedidos = await pedidosModel.getAll(req.pool);
     res.json(pedidos);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+}
 
-exports.createPedido = async (req, res) => {
+async function createPedido(req, res) {
   try {
     const pedidoData = req.body;
     const nuevoPedido = await pedidosModel.create(req.pool, pedidoData);
@@ -17,9 +18,9 @@ exports.createPedido = async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
-};
+}
 
-exports.updatePedido = async (req, res) => {
+async function updatePedido(req, res) {
   try {
     const id = req.params.id;
     const pedidoData = req.body;
@@ -28,9 +29,9 @@ exports.updatePedido = async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
-};
+}
 
-exports.deletePedido = async (req, res) => {
+async function deletePedido(req, res) {
   try {
     const id = req.params.id;
     await pedidosModel.delete(req.pool, id);
@@ -38,4 +39,11 @@ exports.deletePedido = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+}
+
+module.exports = {
+  getPedidos,
+  createPedido,
+  updatePedido,
+  deletePedido
 };

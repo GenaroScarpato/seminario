@@ -10,10 +10,8 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
           <thead>
             <tr>
               <th>Dirección</th>
-              <th>Latitud</th>
-              <th>Longitud</th>
-              <th>Volumen</th>
-              <th>Asignado a</th>
+              <th>Volumen (m³)</th>
+              <th>Peso (kg)</th>
               <th>Estado</th>
               <th>Programado para</th>
               <th>Acciones</th>
@@ -22,24 +20,22 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
           <tbody>
             {pedidosValidos.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center text-muted">
+                <td colSpan="9" className="text-center text-muted">
                   No hay pedidos disponibles.
                 </td>
               </tr>
             ) : (
               pedidosValidos.map((pedido) => (
                 <tr key={pedido.id}>
-                  <td>{pedido.address}</td>
-                  <td>{pedido.lat}</td>
-                  <td>{pedido.lng}</td>
-                  <td>{pedido.volume}</td>
-                  <td>{pedido.assigned_to}</td>
+                  <td>{pedido.direccion}</td>
+                  <td>{pedido.volumen}</td>
+                  <td>{pedido.peso ?? '-'} </td>
                   <td>
                     <span className={`badge bg-${getStatusBadgeClass(pedido.status)}`}>
                       {getStatusText(pedido.status)}
                     </span>
                   </td>
-                  <td>{new Date(pedido.scheduled_at).toLocaleString()}</td>
+                  <td>{pedido.scheduled_at ? new Date(pedido.scheduled_at).toLocaleString() : '-'}</td>
                   <td>
                     <div className="btn-group">
                       <button

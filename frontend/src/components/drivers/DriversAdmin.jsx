@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, API_ROUTES } from '@config/api';
 import { Button } from 'react-bootstrap';
 import { FaPlus } from 'react-icons/fa';
@@ -9,7 +8,6 @@ import DriverHistory from './DriverHistory';
 import DriverDocuments from './DriverDocuments';
 
 const DriversAdmin = () => {
-  const navigate = useNavigate();
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -51,7 +49,6 @@ const DriversAdmin = () => {
 
   const fetchVehicles = async () => {
     try {
-      console.log('Solicitando vehículos a:', `${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
       const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`, {
         credentials: 'include' // Incluir credenciales para manejar sesiones
       });
@@ -150,7 +147,7 @@ const DriversAdmin = () => {
   const filteredDrivers = drivers.filter(driver => {
     const driverName = driver.nombre || '';
     const driverEstado = driver.estado || '';
-    const driverVehiculoId = driver.vehiculo_asignado || '';
+const driverVehiculoId = driver.vehiculo_id || '';
     
     const matchesName = driverName.toString().toLowerCase().includes(searchName.toLowerCase());
     const matchesEstado = selectedEstado === 'todos' || driverEstado === selectedEstado;
@@ -194,7 +191,6 @@ const DriversAdmin = () => {
               <th>Nombre</th>
               <th>DNI</th>
               <th>Teléfono</th>
-              <th>Email</th>
               <th>Estado</th>
               <th>Vehículo Asignado</th>
               <th>Acciones</th>
@@ -205,24 +201,23 @@ const DriversAdmin = () => {
               filteredDrivers.map((driver) => {
                 if (!driver || !driver.id) return null; // Saltar conductores inválidos
                 
-                const vehicleInfo = driver.vehiculo_asignado 
-                  ? vehicles.find(v => v && v.id === driver.vehiculo_asignado)?.patente 
-                  : 'Sin vehículo';
+               const vehicleInfo = driver.vehiculo_id
+  ? vehicles.find(v => v && v.id === driver.vehiculo_id)?.patente || 'Sin patente'
+  : 'Sin vehículo';
                 
                 return (
                   <tr key={`driver-${driver.id}`}>
                     <td>{driver.nombre || 'N/A'}</td>
                     <td>{driver.dni || 'N/A'}</td>
                     <td>{driver.telefono || 'N/A'}</td>
-                    <td>{driver.email || 'N/A'}</td>
                     <td>
                       <select
-                        value={driver.estado || 'activo'}
+                        value={driver.estado || 'disponible'}
                         onChange={(e) => handleUpdateDriver({ ...driver, estado: e.target.value })}
                         className="form-select form-select-sm"
                         aria-label="Estado del conductor"
                       >
-                        <option value="activo">Activo</option>
+                        <option value="disponible">Disponible</option>
                         <option value="inactivo">Inactivo</option>
                         <option value="suspendido">Suspendido</option>
                       </select>

@@ -1,14 +1,30 @@
 // models/conductorModel.js
 
 const getAllConductores = async (pool) => {
-    const query = `
-      SELECT c.*, v.*
-      FROM conductores c
-      LEFT JOIN vehiculos v ON c.vehiculo_asignado = v.id
-    `;
-    const { rows } = await pool.query(query);
-    return rows;
-  };
+  const query = `
+    SELECT 
+      c.id,
+      c.nombre,
+      c.apellido,
+      c.dni,
+      c.url_licencia,
+      c.telefono,
+      c.email,
+      c.direccion,
+      c.estado,
+      c.created_at,
+      c.vehiculo_id,
+      v.marca AS vehiculo_marca,
+      v.modelo AS vehiculo_modelo,
+      v.patente AS vehiculo_patente
+    FROM conductores c
+    LEFT JOIN vehiculos v ON c.vehiculo_id = v.id;
+  `;
+  const { rows } = await pool.query(query);
+  return rows;
+};
+
+
   const createConductor = async (pool, data) => {
     const {
       nombre,
@@ -92,23 +108,9 @@ const getAllConductores = async (pool) => {
     return rows;
   };
   
-  const getDocuments = async (pool, conductor_id) => {
-    const query = `SELECT * FROM documentos WHERE conductor_id = $1`;
-    const { rows } = await pool.query(query, [conductor_id]);
-    return rows;
-  };
   
-  const uploadDocument = async (pool, conductor_id, data) => {
-    const { tipo, url } = data;
-    const query = `
-      INSERT INTO documentos (conductor_id, tipo, url)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `;
-    const values = [conductor_id, tipo, url];
-    const { rows } = await pool.query(query, values);
-    return rows[0];
-  };
+  
+
   
   module.exports = {
     getAllConductores,
@@ -117,8 +119,6 @@ const getAllConductores = async (pool) => {
     updateConductor,
     deleteConductor,
     getHistory,
-    getFeedback,
-    getDocuments,
-    uploadDocument
+    getFeedback
   };
   

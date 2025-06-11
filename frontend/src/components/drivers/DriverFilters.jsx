@@ -55,7 +55,7 @@ const DriverFilters = ({
                   onChange={(e) => onEstadoChange(e.target.value)}
                 >
                   <option value="todos">Todos los estados</option>
-                  <option value="activo">Activo</option>
+                  <option value="disponible">Disponible</option>
                   <option value="inactivo">Inactivo</option>
                   <option value="suspendido">Suspendido</option>
                 </select>
@@ -70,7 +70,11 @@ const DriverFilters = ({
                 <select
                   className="form-select form-select-sm"
                   value={selectedVehicle?.id || ''}
-                  onChange={(e) => onVehicleChange(vehicles.find(v => v.id === e.target.value) || null)}
+onChange={(e) => {
+  const selectedId = parseInt(e.target.value);
+  const foundVehicle = vehicles.find(v => v.id === selectedId);
+  onVehicleChange(foundVehicle || null);
+}}
                 >
                   <option value="">Todos los vehículos</option>
                   {vehicles.map(vehicle => (

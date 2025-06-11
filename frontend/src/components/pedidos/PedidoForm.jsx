@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 
 const PedidoForm = ({ onSubmit, pedido = null }) => {
   const [formData, setFormData] = useState({
-    address: pedido?.address || '',
+    direccion: pedido?.direccion || '',
     lat: pedido?.lat || '',
     lng: pedido?.lng || '',
-    volume: pedido?.volume || '',
-    assigned_to: pedido?.assigned_to || '',
-    status: pedido?.status || 'pendiente',
-    scheduled_at: pedido?.scheduled_at || ''
+    volumen: pedido?.volumen || '',
+    peso: pedido?.peso || '',
+    estado: pedido?.estado || 'pendiente',
+    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0,16) : '' // formato datetime-local
   });
 
   const handleChange = (e) => {
@@ -29,13 +29,13 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
       <form onSubmit={handleSubmit} className="needs-validation" noValidate>
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label htmlFor="address" className="form-label">Dirección</label>
+            <label htmlFor="direccion" className="form-label">Dirección</label>
             <input 
               type="text" 
               className="form-control" 
-              id="address" 
-              name="address" 
-              value={formData.address} 
+              id="direccion" 
+              name="direccion" 
+              value={formData.direccion} 
               onChange={handleChange} 
               required
             />
@@ -51,6 +51,7 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
               value={formData.lat} 
               onChange={handleChange} 
               required
+              step="any"
             />
           </div>
 
@@ -64,46 +65,48 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
               value={formData.lng} 
               onChange={handleChange} 
               required
+              step="any"
             />
           </div>
         </div>
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label htmlFor="volume" className="form-label">Volumen</label>
+            <label htmlFor="volumen" className="form-label">Volumen</label>
             <input 
               type="number" 
               className="form-control" 
-              id="volume" 
-              name="volume" 
-              value={formData.volume} 
+              id="volumen" 
+              name="volumen" 
+              value={formData.volumen} 
               onChange={handleChange} 
               required
+              step="any"
             />
           </div>
 
           <div className="col-md-6 mb-3">
-            <label htmlFor="assigned_to" className="form-label">Asignado a</label>
+            <label htmlFor="peso" className="form-label">Peso</label>
             <input 
-              type="text" 
+              type="number" 
               className="form-control" 
-              id="assigned_to" 
-              name="assigned_to" 
-              value={formData.assigned_to} 
+              id="peso" 
+              name="peso" 
+              value={formData.peso} 
               onChange={handleChange} 
-              required
+              step="any"
             />
           </div>
         </div>
 
         <div className="row">
           <div className="col-md-6 mb-3">
-            <label htmlFor="status" className="form-label">Estado</label>
+            <label htmlFor="estado" className="form-label">Estado</label>
             <select 
               className="form-select" 
-              id="status" 
-              name="status" 
-              value={formData.status} 
+              id="estado" 
+              name="estado" 
+              value={formData.estado} 
               onChange={handleChange} 
               required
             >
@@ -123,7 +126,6 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
               name="scheduled_at" 
               value={formData.scheduled_at} 
               onChange={handleChange} 
-              required
             />
           </div>
         </div>

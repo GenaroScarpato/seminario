@@ -1,6 +1,7 @@
 // controllers/conductorController.js
 const conductorModel = require('../models/conductores');
 
+
 const handleError = (res, error) => {
   console.error(error);
 
@@ -39,7 +40,7 @@ const handleError = (res, error) => {
   return res.status(500).json({ message: 'Error interno del servidor' });
 };
 
-exports.getAll = async (req, res) => {
+getAll = async (req, res) => {
   try {
     const conductores = await conductorModel.getAllConductores(req.pool);
     res.json(conductores);
@@ -48,7 +49,7 @@ exports.getAll = async (req, res) => {
   }
 };
 
-exports.create = async (req, res) => {
+create = async (req, res) => {
   try {
     const { 
       nombre, 
@@ -58,7 +59,8 @@ exports.create = async (req, res) => {
       telefono, 
       url_licencia, 
       estado = 'disponible',
-      direccion 
+      direccion,
+      vehiculo_id = null  // <-- agregado
     } = req.body;
 
     // Validación de campos requeridos
@@ -86,7 +88,8 @@ exports.create = async (req, res) => {
       telefono: telefono || null,
       url_licencia: url_licencia || null,
       estado,
-      direccion: direccion || null
+      direccion: direccion || null,
+      vehiculo_id  // <-- pasa el vehículo aquí
     });
     
     res.status(201).json({
@@ -99,7 +102,8 @@ exports.create = async (req, res) => {
   }
 };
 
-exports.update = async (req, res) => {
+
+update = async (req, res) => {
   try {
     const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
@@ -112,7 +116,7 @@ exports.update = async (req, res) => {
   }
 };
 
-exports.delete = async (req, res) => {
+deleteConductor = async (req, res) => {
   try {
     const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
@@ -125,7 +129,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-exports.getHistory = async (req, res) => {
+getHistory = async (req, res) => {
   try {
     const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
@@ -138,7 +142,7 @@ exports.getHistory = async (req, res) => {
   }
 };
 
-exports.getFeedback = async (req, res) => {
+getFeedback = async (req, res) => {
   try {
     const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
     if (!conductor) {
@@ -151,37 +155,14 @@ exports.getFeedback = async (req, res) => {
   }
 };
 
-exports.getDocuments = async (req, res) => {
-  try {
-    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
-    if (!conductor) {
-      return res.status(404).json({ message: 'Conductor no encontrado' });
-    }
-    const documentos = await conductorModel.getDocuments(req.pool, req.params.id);
-    res.json(documentos);
-  } catch (error) {
-    handleError(res, error);
-  }
-};
 
-exports.uploadDocument = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No se subió ningún archivo' });
-    }
 
-    const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
-    if (!conductor) {
-      return res.status(404).json({ message: 'Conductor no encontrado' });
-    }
 
-    const documento = await conductorModel.uploadDocument(req.pool, req.params.id, {
-      ...req.body,
-      url: `/uploads/${req.file.filename}`
-    });
-
-    res.status(201).json(documento);
-  } catch (error) {
-    handleError(res, error);
-  }
+module.exports = {
+  getAll,
+  create,
+  update,
+  deleteConductor,
+  getHistory,
+  getFeedback
 };
