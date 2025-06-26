@@ -77,11 +77,12 @@ onChange={(e) => {
 }}
                 >
                   <option value="">Todos los vehículos</option>
-                  {vehicles.map(vehicle => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
-                    </option>
-                  ))}
+                 {Array.isArray(vehicles) ? vehicles.map(vehicle => (
+  <option key={vehicle.id} value={vehicle.id}>
+    {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
+  </option>
+)) : null}
+
                 </select>
               </div>
             </div>

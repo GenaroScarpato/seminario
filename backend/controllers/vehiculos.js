@@ -16,7 +16,7 @@ const filtroSchema = Joi.object({
     .max(50)
     .optional(),
   tipo: Joi.string()
-    .valid('auto', 'camioneta', 'moto')
+    .valid('auto', 'camioneta', 'moto', 'camión')
     .optional(),
   estado: Joi.string()
     .valid('disponible', 'en_servicio', 'mantenimiento', 'inactivo')

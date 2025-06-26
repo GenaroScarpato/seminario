@@ -1,31 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import PedidoTable from './PedidoTable';
 import PedidoForm from './PedidoForm';
 import axios from 'axios';
 import { API_BASE_URL, API_ROUTES } from '@config/api';
+import { OrderContext } from '../../context/OrderContext'; // Asegúrate de que la ruta sea correcta
 
 const PedidosAdmin = () => {
-  const [pedidos, setPedidos] = useState([]);
-  const [selectedPedido, setSelectedPedido] = useState([]);
+  const { orders, setOrders } = useContext(OrderContext);  // Uso del contexto
+  const [selectedPedido, setSelectedPedido] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
-  const fetchPedidos = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
-      setPedidos(response.data);
-    } catch (error) {
-      console.error('Error al cargar pedidos:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchPedidos();
-  }, []);
 
   const handleCreatePedido = async (pedidoData) => {
     try {
-      const response = await axios.post('/api/pedidos', pedidoData);
-      setPedidos([...pedidos, response.data]);
+      const response = await axios.post(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`, pedidoData);
+      setOrders([...orders, response.data]);  // Actualiza contexto
       handleCloseModal();
     } catch (error) {
       console.error('Error al crear pedido:', error);
@@ -34,10 +22,11 @@ const PedidosAdmin = () => {
 
   const handleUpdatePedido = async (pedidoData) => {
     try {
-      const response = await axios.put(`/api/pedidos/${selectedPedido.id}`, pedidoData);
-      setPedidos(pedidos.map(pedido => 
+      const url = `${API_BASE_URL}${API_ROUTES.PEDIDOS.UPDATE.replace(':id', selectedPedido.id)}`;
+      const response = await axios.put(url, pedidoData);
+      setOrders(orders.map(pedido => 
         pedido.id === selectedPedido.id ? response.data : pedido
-      ));
+      ));  // Actualiza contexto
       handleCloseModal();
     } catch (error) {
       console.error('Error al actualizar pedido:', error);
@@ -48,8 +37,8 @@ const PedidosAdmin = () => {
     if (!window.confirm('¿Estás seguro de eliminar este pedido?')) return;
 
     try {
-      await axios.delete(`/api/pedidos/${id}`);
-      setPedidos(pedidos.filter(pedido => pedido.id !== id));
+      await axios.delete(`${API_BASE_URL}${API_ROUTES.PEDIDOS.DELETE.replace(':id', id)}`);
+      setOrders(orders.filter(pedido => pedido.id !== id));  // Actualiza contexto
     } catch (error) {
       console.error('Error al eliminar pedido:', error);
     }
@@ -85,7 +74,7 @@ const PedidosAdmin = () => {
       </div>
 
       <PedidoTable 
-        pedidos={pedidos} 
+        pedidos={orders} 
         onDelete={handleDeletePedido}
         onEdit={handleEditPedido}
       />

@@ -31,8 +31,8 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
                   <td>{pedido.volumen}</td>
                   <td>{pedido.peso ?? '-'} </td>
                   <td>
-                    <span className={`badge bg-${getStatusBadgeClass(pedido.status)}`}>
-                      {getStatusText(pedido.status)}
+                    <span className={`badge bg-${getStatusBadgeClass(pedido.estado)}`}>
+                      {getStatusText(pedido.estado)}
                     </span>
                   </td>
                   <td>{pedido.scheduled_at ? new Date(pedido.scheduled_at).toLocaleString() : '-'}</td>

@@ -1,53 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { VehicleContext } from '../../context/VehicleContext';
 import { API_BASE_URL, API_ROUTES } from '../../config/api';
 
 import VehicleForm from './VehicleForm';
 import VehicleFilters from './VehicleFilters';
 
 const VehiclesAdmin = () => {
-  const [allVehicles, setAllVehicles] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+  const { vehicles, setVehicles } = useContext(VehicleContext);
+  const [filteredVehicles, setFilteredVehicles] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedEstado, setSelectedEstado] = useState('todos');
 
-
-
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-
-  // Update filtered vehicles when selectedEstado changes
   useEffect(() => {
     if (selectedEstado === 'todos') {
-      setVehicles(allVehicles);
+      setFilteredVehicles(vehicles);
     } else {
-      const filtered = allVehicles.filter(vehicle => vehicle.estado === selectedEstado);
-      setVehicles(filtered);
+      setFilteredVehicles(vehicles.filter(v => v.estado === selectedEstado));
     }
-  }, [selectedEstado, allVehicles]);
-
-  const fetchVehicles = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
-      const data = await response.json();
-      setAllVehicles(data);
-      setVehicles(data);
-    } catch (error) {
-      console.error('Error al cargar vehículos:', error);
-      alert('Error al cargar los vehículos. Por favor, inténtalo de nuevo.');
-    }
-  };
-
-
+  }, [vehicles, selectedEstado]);
 
   const handleCreateVehicle = async (vehicleData) => {
     try {
       const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.CREATE}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(vehicleData),
       });
       const data = await response.json();
@@ -61,41 +38,25 @@ const VehiclesAdmin = () => {
 
   const handleUpdateVehicleStatus = async (id, nuevoEstado) => {
     try {
-      // Find the vehicle in the current state
       const vehicleToUpdate = vehicles.find(v => v.id === id);
-      if (!vehicleToUpdate) {
-        throw new Error('Vehículo no encontrado');
-      }
+      if (!vehicleToUpdate) throw new Error('Vehículo no encontrado');
 
-      // Create a complete vehicle object with all required fields
-      const updatedVehicle = {
-        id: id,
-        patente: vehicleToUpdate.patente,
-        marca: vehicleToUpdate.marca,
-        modelo: vehicleToUpdate.modelo,
-        anio: vehicleToUpdate.anio,
-        tipo: vehicleToUpdate.tipo,
-        estado: nuevoEstado,
-        capacidad: vehicleToUpdate.capacidad || 0
-      };
+      const updatedVehicle = { ...vehicleToUpdate, estado: nuevoEstado };
 
-      // First, update the status in our local state
-      setVehicles(vehicles.map(v => v.id === id ? updatedVehicle : v));
+      setVehicles(vehicles.map(v => (v.id === id ? updatedVehicle : v)));
 
-      // Then try to update in the backend
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.UPDATE.replace(':id', encodeURIComponent(id))}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedVehicle),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}${API_ROUTES.VEHICULOS.UPDATE.replace(':id', encodeURIComponent(id))}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedVehicle),
+        }
+      );
 
-      const data = await response.json();
       if (!response.ok) {
-        // If backend update fails, revert the local state
-        setVehicles(vehicles.map(v => v.id === id ? vehicleToUpdate : v));
-        throw new Error(data.message || 'Error al actualizar el estado');
+        setVehicles(vehicles); // Revertir si falla
+        throw new Error('Error al actualizar estado');
       }
     } catch (error) {
       console.error('Error al actualizar estado:', error);
@@ -105,15 +66,16 @@ const VehiclesAdmin = () => {
 
   const handleUpdateVehicle = async (vehicleData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.UPDATE.replace(':id', selectedVehicle.id)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(vehicleData),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}${API_ROUTES.VEHICULOS.UPDATE.replace(':id', selectedVehicle.id)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(vehicleData),
+        }
+      );
       const data = await response.json();
-      setVehicles(vehicles.map(v => v.id === selectedVehicle.id ? data : v));
+      setVehicles(vehicles.map(v => (v.id === selectedVehicle.id ? data : v)));
       handleCloseModal();
     } catch (error) {
       console.error('Error al actualizar vehículo:', error);
@@ -124,11 +86,12 @@ const VehiclesAdmin = () => {
   const handleDeleteVehicle = async (id) => {
     if (!window.confirm('¿Estás seguro de eliminar este vehículo?')) return;
     try {
-      const response = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.DELETE.replace(':id', id)}`, {
-        method: 'DELETE'
-      });
+      const response = await fetch(
+        `${API_BASE_URL}${API_ROUTES.VEHICULOS.DELETE.replace(':id', id)}`,
+        { method: 'DELETE' }
+      );
       if (response.ok) {
-        setVehicles(prev => prev.filter(v => v.id !== id));
+        setVehicles(vehicles.filter(v => v.id !== id));
       } else {
         throw new Error('Error al eliminar el vehículo');
       }
@@ -136,11 +99,6 @@ const VehiclesAdmin = () => {
       console.error('Error:', error);
       alert('Error al eliminar el vehículo. Por favor, inténtalo de nuevo.');
     }
-  };
-
-  const handleViewDetails = (vehicle) => {
-    setSelectedVehicleDetails(vehicle);
-    setShowDetails(true);
   };
 
   const handleEditVehicle = (vehicle) => {
@@ -169,9 +127,7 @@ const VehiclesAdmin = () => {
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center gap-3">
-          <h2>Administración de Vehículos</h2>
-        </div>
+        <h2>Administración de Vehículos</h2>
         <button className="btn btn-primary" onClick={handleOpenNew}>
           Nuevo Vehículo
         </button>
@@ -180,9 +136,7 @@ const VehiclesAdmin = () => {
       <div className="mb-3">
         <VehicleFilters
           selectedEstado={selectedEstado}
-          onEstadoChange={(estado) => {
-            setSelectedEstado(estado);
-          }}
+          onEstadoChange={setSelectedEstado}
         />
       </div>
 
@@ -200,12 +154,14 @@ const VehiclesAdmin = () => {
           </tr>
         </thead>
         <tbody>
-          {vehicles.length === 0 ? (
+          {filteredVehicles.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center">No hay vehículos disponibles</td>
+              <td colSpan="8" className="text-center">
+                No hay vehículos disponibles
+              </td>
             </tr>
           ) : (
-            vehicles.map((vehicle) => (
+            filteredVehicles.map(vehicle => (
               <tr key={vehicle.id}>
                 <td>{vehicle.patente}</td>
                 <td>{vehicle.marca}</td>
@@ -216,11 +172,9 @@ const VehiclesAdmin = () => {
                 <td>
                   <select
                     value={vehicle.estado}
-                    onChange={(e) => handleUpdateVehicleStatus(vehicle.id, e.target.value)}
+                    onChange={e => handleUpdateVehicleStatus(vehicle.id, e.target.value)}
                     className="form-select form-select-sm"
-                    style={{
-                      maxWidth: '150px'
-                    }}
+                    style={{ maxWidth: '150px' }}
                   >
                     <option value="disponible">Disponible</option>
                     <option value="en_servicio">En servicio</option>
@@ -229,12 +183,17 @@ const VehiclesAdmin = () => {
                   </select>
                 </td>
                 <td>
-                  <button 
-                    type="button" 
+                  <button
                     className="btn btn-danger btn-sm"
                     onClick={() => handleDeleteVehicle(vehicle.id)}
                   >
                     Eliminar
+                  </button>{' '}
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleEditVehicle(vehicle)}
+                  >
+                    Editar
                   </button>
                 </td>
               </tr>
@@ -243,12 +202,14 @@ const VehiclesAdmin = () => {
         </tbody>
       </table>
 
-      <div className={`modal fade ${showModal ? 'show' : ''}`} 
-           style={{ display: showModal ? 'block' : 'none' }}
-           tabIndex="-1"
-           role="dialog"
-           aria-labelledby="vehicleModalLabel"
-           aria-hidden={!showModal}
+      {/* Modal */}
+      <div
+        className={`modal fade ${showModal ? 'show' : ''}`}
+        style={{ display: showModal ? 'block' : 'none' }}
+        tabIndex="-1"
+        role="dialog"
+        aria-labelledby="vehicleModalLabel"
+        aria-hidden={!showModal}
       >
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
@@ -256,33 +217,27 @@ const VehiclesAdmin = () => {
               <h5 className="modal-title" id="vehicleModalLabel">
                 {selectedVehicle ? 'Editar' : 'Nuevo'} Vehículo
               </h5>
-              <button 
-                type="button" 
-                className="btn-close" 
+              <button
+                type="button"
+                className="btn-close"
                 onClick={handleCloseModal}
                 aria-label="Close"
               ></button>
             </div>
             <div className="modal-body">
-              <VehicleForm
-                onSubmit={handleSubmit}
-                vehicle={selectedVehicle}
-              />
+              <VehicleForm onSubmit={handleSubmit} vehicle={selectedVehicle} />
             </div>
             <div className="modal-footer">
-              <button 
-                type="button" 
-                className="btn btn-secondary"
-                onClick={handleCloseModal}
-              >
+              <button className="btn btn-secondary" onClick={handleCloseModal}>
                 Cerrar
               </button>
             </div>
           </div>
         </div>
       </div>
-      <div className={`modal-backdrop fade ${showModal ? 'show' : ''}`} 
-           style={{ display: showModal ? 'block' : 'none' }}
+      <div
+        className={`modal-backdrop fade ${showModal ? 'show' : ''}`}
+        style={{ display: showModal ? 'block' : 'none' }}
       ></div>
     </div>
   );

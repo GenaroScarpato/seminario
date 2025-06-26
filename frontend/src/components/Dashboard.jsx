@@ -1,52 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, API_ROUTES } from '@config/api';
+import React, { useContext, useState } from 'react';
+import axios from 'axios';
+import { OrderContext } from '../context/OrderContext';
+import { VehicleContext } from '../context/VehicleContext';
+import PedidoTable from './pedidos/PedidoTable';
+import VehicleTable from './vehicles/VehicleTable';
+import { MapContext } from '../context/MapContext';
+
 const Dashboard = () => {
-  // Estados para datos y UI
-  const [pedidos, setPedidos] = useState([]);
-  const [vehiculos, setVehiculos] = useState([]);
-  const [clusters, setClusters] = useState(null);
-  const [loadingClusters, setLoadingClusters] = useState(false);
+  const { orders } = useContext(OrderContext);
+  const { vehicles } = useContext(VehicleContext);
+  const [assignments, setAssignments] = useState(null);
+  const [unassignedOrders, setUnassignedOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { setMapState } = useContext(MapContext);
+  const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible');
 
-  // Cargar datos iniciales (pedidos, vehículos)
-  useEffect(() => {
-    fetchPedidos();
-    fetchVehiculos();
-  }, []);
-
-  const fetchPedidos = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
-      const data = await res.json();
-      setPedidos(data);
-    } catch (err) {
-      setError('Error cargando pedidos');
-    }
-  };
-
-  const fetchVehiculos = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
-      const data = await res.json();
-      setVehiculos(data);
-    } catch (err) {
-      setError('Error cargando vehículos');
-    }
-  };
-
-  // Función para ejecutar K-Means (backend)
-  const runKMeans = async () => {
-    setLoadingClusters(true);
+  const asignarPedidos = async () => {
+    setLoading(true);
     setError(null);
+    setAssignments(null);
+    setUnassignedOrders([]);
+
     try {
-      const res = await fetch('/api/kmeans', { method: 'POST' });
-      const data = await res.json();
-      setClusters(data); // esperar { clusters: [...] }
+      const res = await axios.post('http://127.0.0.1:8000/asignar-pedidos', {
+        pedidos: orders,
+        vehiculos: vehiculosDisponibles
+      });
+
+      console.log("🛣️ Rutas optimizadas por vehículo:");
+      Object.entries(res.data.asignaciones).forEach(([vehiculoId, ruta]) => {
+        console.log(`Vehículo ${vehiculoId}:`, ruta);
+      });
+
+      if (res.data.no_asignados && res.data.no_asignados.length > 0) {
+        console.log("❌ Pedidos no asignados:", res.data.no_asignados);
+      }
+
+      setAssignments(res.data.asignaciones);
+      setUnassignedOrders(res.data.no_asignados || []);
+      setMapState(prev => ({
+        ...prev,
+        assignments: res.data.asignaciones,
+        unassigned: res.data.no_asignados || []
+      }));
+
     } catch (err) {
-      setError('Error ejecutando K-Means');
+      console.error(err);
+      setError('Error en la respuesta del servidor');
     } finally {
-      setLoadingClusters(false);
+      setLoading(false);
     }
+  };
+
+  const extraerDireccionCorta = (direccionCompleta) => {
+    const partes = direccionCompleta.split(',');
+    const tieneNumeroInicial = /^\d+/.test(partes[0].trim());
+
+    let calleConNumero = '';
+    let barrio = '';
+
+    if (tieneNumeroInicial) {
+      calleConNumero = `${partes[1].trim()} ${partes[0].trim()}`;
+      barrio = partes[2]?.trim() || '';
+    } else {
+      const numeroEnParte1 = partes[1]?.match(/\d+/);
+      if (numeroEnParte1) {
+        calleConNumero = `${partes[0].trim()} ${numeroEnParte1[0]}`;
+        barrio = partes[2]?.trim() || '';
+      } else {
+        calleConNumero = partes[0].trim();
+        barrio = partes[2]?.trim() || '';
+      }
+    }
+
+    return `${calleConNumero} - ${barrio}`;
+  };
+
+  const getPedidoResumen = (pedidoId) => {
+    const pedido = orders.find(p => p.id === pedidoId);
+    if (!pedido) return `Pedido #${pedidoId}`;
+    const direccionCorta = extraerDireccionCorta(pedido.direccion);
+    return `Pedido #${pedido.id} - ${direccionCorta}`;
+  };
+
+  const getVehicleInfo = (vehiculoId) => {
+    const vehiculo = vehicles.find(v => v.id === parseInt(vehiculoId));
+    if (!vehiculo) return `Vehículo ${vehiculoId}`;
+    return ` (${vehiculo.patente}) ${vehiculo.tipo} - Capacidad: ${vehiculo.capacidad} kg`;
+  };
+
+  const getPedidoDetails = (pedidoId) => {
+    const pedido = orders.find(p => p.id === pedidoId);
+    if (!pedido) return {};
+    return {
+      direccion: pedido.direccion,
+      peso: pedido.peso,
+      volumen: pedido.volumen
+    };
   };
 
   return (
@@ -57,30 +108,85 @@ const Dashboard = () => {
 
       <section className="mb-4">
         <h2>Pedidos</h2>
-        <p>Total pedidos: {pedidos.length}</p>
-        {/* Aquí podría ir un componente tabla de pedidos */}
+        <p>Total pedidos: {orders ? orders.length : 0}</p>
+        <PedidoTable pedidos={orders} />
       </section>
 
       <section className="mb-4">
         <h2>Vehículos disponibles</h2>
-        <p>Total vehículos: {vehiculos.length}</p>
-        {/* Aquí podría ir tabla o lista de vehículos */}
+        <p>Total vehículos: {vehiculosDisponibles ? vehiculosDisponibles.length : 0}</p>
+        <VehicleTable vehicles={vehiculosDisponibles} />
       </section>
 
       <section className="mb-4">
-        <h2>Clusterización (K-Means)</h2>
+        <h2>Asignación de Pedidos</h2>
         <button
           className="btn btn-primary"
-          onClick={runKMeans}
-          disabled={loadingClusters}
+          onClick={asignarPedidos}
+          disabled={loading}
         >
-          {loadingClusters ? 'Procesando...' : 'Ejecutar K-Means'}
+          {loading ? 'Procesando...' : 'Asignar Pedidos'}
         </button>
 
-        {clusters && (
+        {assignments && (
           <div className="mt-3">
-            <h3>Resultado Clusters</h3>
-            <pre>{JSON.stringify(clusters, null, 2)}</pre>
+            <h3>Resultado de Asignación</h3>
+            <table className="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Vehículo</th>
+                  <th>Direcciones de pedidos asignados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(assignments).map(([vehiculoId, pedidos]) => (
+                  <tr key={vehiculoId}>
+                    <td>{getVehicleInfo(vehiculoId)}</td>
+                    <td>
+                      {pedidos.length > 0 ? (
+                        <ul className="mb-0 ps-3">
+                          {pedidos.map(id => (
+                            <li key={id}>{getPedidoResumen(id)}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        'Sin pedidos asignados'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {unassignedOrders.length > 0 && (
+          <div className="mt-4 alert alert-warning">
+            <h4>Pedidos no asignados</h4>
+            <p>Los siguientes pedidos no pudieron ser asignados a ningún vehículo:</p>
+            <table className="table table-bordered">
+              <thead>
+                <tr>
+                  <th>ID Pedido</th>
+                  <th>Dirección</th>
+                  <th>Peso (kg)</th>
+                  <th>Volumen (m³)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unassignedOrders.map(id => {
+                  const details = getPedidoDetails(id);
+                  return (
+                    <tr key={id}>
+                      <td>{id}</td>
+                      <td>{details.direccion || 'N/A'}</td>
+                      <td>{details.peso || 'N/A'}</td>
+                      <td>{details.volumen || 'N/A'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -33,7 +33,7 @@ const vehicleSchema = Joi.object({
       'any.required': 'El año es requerido'
     }),
   tipo: Joi.string()
-    .valid('auto', 'camioneta', 'moto')
+    .valid('auto', 'camioneta', 'moto', 'camión')
     .required()
     .messages({
       'any.required': 'El tipo es requerido'

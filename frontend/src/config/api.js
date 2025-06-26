@@ -13,7 +13,7 @@ export const API_ROUTES = {
     UPDATE: '/api/pedidos/:id',
     DELETE: '/api/pedidos/:id'
   },
-  DRIVERS: {
+  CONDUCTORES: {
     ALL: '/api/conductores',
     CREATE: '/api/conductores',
     UPDATE: '/api/conductores/:id',

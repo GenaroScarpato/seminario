@@ -47,7 +47,7 @@ const VehicleForm = ({ onSubmit, vehicle = null }) => {
     }
 
     // Validar tipo
-    if (!['auto', 'camioneta', 'moto'].includes(formData.tipo)) {
+    if (!['auto', 'camioneta', 'moto', 'camión'].includes(formData.tipo)) {
       alert('Por favor, selecciona un tipo válido');
       return;
     }
@@ -159,6 +159,7 @@ const VehicleForm = ({ onSubmit, vehicle = null }) => {
               <option value="auto">Auto</option>
               <option value="camioneta">Camioneta</option>
               <option value="moto">Moto</option>
+              <option value="camión">Camión</option>
             </select>
           </div>
         </div>

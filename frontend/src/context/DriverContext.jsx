@@ -1,122 +1,93 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { driverService } from '../services/driverService';
+import { API_BASE_URL, API_ROUTES } from '@config/api';
 
 export const DriverContext = createContext();
 
 export const DriverProvider = ({ children }) => {
   const [drivers, setDrivers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
 
-  // Create new driver
+  // Fetch drivers
+  const fetchDrivers = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.ALL}`);
+      const data = await res.json();
+      setDrivers(data);
+    } catch (error) {
+      console.error('Error cargando conductores:', error);
+    }
+  };
+
+  // Fetch vehicles (asumo que tenés ruta API_ROUTES.VEHICulos.ALL)
+  const fetchVehicles = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
+      const data = await res.json();
+      setVehicles(data);
+    } catch (error) {
+      console.error('Error cargando vehículos:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDrivers();
+    fetchVehicles();
+  }, []);
+
+  // Create driver
   const createDriver = async (driverData) => {
     try {
-      const newDriver = await driverService.createDriver(driverData);
-      setDrivers([...drivers, newDriver]);
-      return newDriver;
-    } catch (err) {
-      throw err;
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.CREATE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(driverData),
+      });
+      if (!res.ok) throw new Error('Error al crear conductor');
+      const newDriver = await res.json();
+      setDrivers(prev => [...prev, newDriver]);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Update driver
-  const updateDriver = async (driverId, updates) => {
+  const updateDriver = async (driverData) => {
     try {
-      const updatedDriver = await driverService.updateDriver(driverId, updates);
-      setDrivers(drivers.map(driver => 
-        driver.id === driverId ? updatedDriver : driver
-      ));
-      return updatedDriver;
-    } catch (err) {
-      throw err;
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.UPDATE.replace(':id', driverData.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(driverData),
+      });
+      if (!res.ok) throw new Error('Error al actualizar conductor');
+      const updatedDriver = await res.json();
+      setDrivers(prev => prev.map(d => (d.id === updatedDriver.id ? updatedDriver : d)));
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // Delete driver
-  const deleteDriver = async (driverId) => {
+  const deleteDriver = async (id) => {
     try {
-      await driverService.deleteDriver(driverId);
-      setDrivers(drivers.filter(driver => driver.id !== driverId));
-    } catch (err) {
-      throw err;
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.DELETE.replace(':id', id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Error al eliminar conductor');
+      setDrivers(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      console.error(error);
     }
-  };
-
-  // Assign vehicle to driver
-  const assignVehicle = async (driverId, vehicleId) => {
-    try {
-      const updatedDriver = await driverService.assignVehicle(driverId, vehicleId);
-      setDrivers(drivers.map(driver => 
-        driver.id === driverId ? updatedDriver : driver
-      ));
-      return updatedDriver;
-    } catch (err) {
-      throw err;
-    }
-  };
-
-  // Get driver stats
-  const getDriverStats = async (driverId) => {
-    try {
-      return await driverService.getDriverStats(driverId);
-    } catch (err) {
-      throw err;
-    }
-  };
-
-  // Fetch drivers from API
-  useEffect(() => {
-    const fetchDrivers = async () => {
-      try {
-        const data = await driverService.getDrivers();
-        setDrivers(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDrivers();
-  }, []);
-
-  const value = {
-    drivers,
-    loading,
-    error,
-    createDriver,
-    updateDriver,
-    deleteDriver,
-    assignVehicle,
-    getDriverStats
   };
 
   return (
-    <DriverContext.Provider value={value}>
+    <DriverContext.Provider value={{
+      drivers,
+      vehicles,
+      createDriver,
+      updateDriver,
+      deleteDriver,
+    }}>
       {children}
     </DriverContext.Provider>
   );
-
-  return (
-    <DriverContext.Provider 
-      value={{
-        drivers,
-        loading,
-        error,
-        createDriver,
-        updateDriver,
-        deleteDriver
-      }}
-    >
-      {children}
-    </DriverContext.Provider>
-  );
-};
-
-export const useDriverContext = () => {
-  const context = React.useContext(DriverContext);
-  if (context === undefined) {
-    throw new Error('useDriverContext debe ser usado dentro de un DriverProvider');
-  }
-  return context;
 };
