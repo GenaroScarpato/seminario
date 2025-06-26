@@ -14,9 +14,9 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
 
   useEffect(() => {
-    // Set initial vehicle if provided
     if (driver?.vehiculo_id && vehicles.length > 0) {
       setFormData(prev => ({
         ...prev,
@@ -47,32 +47,46 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
       newErrors.email = 'El formato del email no es válido';
     }
     if (!formData.licencia.trim()) newErrors.licencia = 'La licencia es requerida';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+
+    setServerError('');
+
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
     setErrors({});
-    
+
     try {
-      // Convert empty string to null for optional fields
       const dataToSend = {
         ...formData,
         vehiculo_id: formData.vehiculo_id || null
       };
-      
+
       await onSubmit(dataToSend);
     } catch (error) {
-      console.error('Error al guardar el conductor:', error);
-      onError?.(error.response?.data?.error || 'Error al guardar el conductor');
+     const errData = error?.response?.data;
+console.log('Error al enviar el formulario:', errData);
+
+if (errData?.message) {
+  setServerError(errData.message); // ✅ este es el formato que devuelve tu backend
+} else if (errData?.error) {
+  setServerError(errData.error);
+} else if (typeof errData === 'string') {
+  setServerError(errData);
+} else if (typeof errData === 'object') {
+  setErrors(errData);
+} else {
+  setServerError('Ocurrió un error inesperado.');
+}
+
+
+      onError?.(errData);
     } finally {
       setIsSubmitting(false);
     }
@@ -80,6 +94,12 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
 
   return (
     <form onSubmit={handleSubmit} className="needs-validation" noValidate>
+      {serverError && (
+        <div className="alert alert-danger" role="alert">
+          {serverError}
+        </div>
+      )}
+
       <div className="row">
         <div className="col-md-6 mb-3">
           <label htmlFor="nombre" className="form-label">Nombre *</label>
@@ -199,16 +219,16 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
 
         <div className="col-12 mt-4">
           <div className="d-flex justify-content-end gap-2">
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-outline-secondary"
               onClick={() => window.history.back()}
               disabled={isSubmitting}
             >
               Cancelar
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn btn-primary"
               disabled={isSubmitting}
             >

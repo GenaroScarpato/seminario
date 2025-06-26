@@ -14,6 +14,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { setMapState } = useContext(MapContext);
+
   const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible');
 
   const asignarPedidos = async () => {
@@ -27,15 +28,6 @@ const Dashboard = () => {
         pedidos: orders,
         vehiculos: vehiculosDisponibles
       });
-
-      console.log("🛣️ Rutas optimizadas por vehículo:");
-      Object.entries(res.data.asignaciones).forEach(([vehiculoId, ruta]) => {
-        console.log(`Vehículo ${vehiculoId}:`, ruta);
-      });
-
-      if (res.data.no_asignados && res.data.no_asignados.length > 0) {
-        console.log("❌ Pedidos no asignados:", res.data.no_asignados);
-      }
 
       setAssignments(res.data.asignaciones);
       setUnassignedOrders(res.data.no_asignados || []);
@@ -56,7 +48,6 @@ const Dashboard = () => {
   const extraerDireccionCorta = (direccionCompleta) => {
     const partes = direccionCompleta.split(',');
     const tieneNumeroInicial = /^\d+/.test(partes[0].trim());
-
     let calleConNumero = '';
     let barrio = '';
 
@@ -106,106 +97,138 @@ const Dashboard = () => {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      <section className="mb-4">
-        <h2>Pedidos</h2>
-        <p>Total pedidos: {orders ? orders.length : 0}</p>
-        <PedidoTable pedidos={orders} />
-      </section>
+      {/* 🔹 KPIs */}
+      <div className="row mb-4">
+        <div className="col-md-3">
+          <div className="card text-white bg-primary mb-3">
+            <div className="card-body">
+              <h5 className="card-title">Pedidos totales</h5>
+              <p className="card-text fs-4">{orders.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card text-white bg-success mb-3">
+            <div className="card-body">
+              <h5 className="card-title">Pedidos asignados</h5>
+              <p className="card-text fs-4">
+                {assignments ? Object.values(assignments).flat().length : 0}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card text-white bg-warning mb-3">
+            <div className="card-body">
+              <h5 className="card-title">No asignados</h5>
+              <p className="card-text fs-4">{unassignedOrders.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card text-white bg-info mb-3">
+            <div className="card-body">
+              <h5 className="card-title">Vehículos disponibles</h5>
+              <p className="card-text fs-4">{vehiculosDisponibles.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      {/* 🔹 Asignación */}
       <section className="mb-4">
-        <h2>Vehículos disponibles</h2>
-        <p>Total vehículos: {vehiculosDisponibles ? vehiculosDisponibles.length : 0}</p>
-        <VehicleTable vehicles={vehiculosDisponibles} />
-      </section>
-
-      <section className="mb-4">
-        <h2>Asignación de Pedidos</h2>
+        <h2>Asignar Pedidos</h2>
         <button
           className="btn btn-primary"
           onClick={asignarPedidos}
           disabled={loading}
         >
-          {loading ? 'Procesando...' : 'Asignar Pedidos'}
+          {loading ? 'Procesando...' : 'Asignar pedidos automáticamente'}
         </button>
+      </section>
 
-        {assignments && (
-          <div className="mt-3">
-            <h3>Resultado de Asignación</h3>
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Vehículo</th>
-                  <th>Direcciones de pedidos asignados</th>
+      {/* 🔹 Resultado de asignación */}
+      {assignments && (
+        <section className="mb-4">
+          <h3>Resumen por vehículo</h3>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>Pedidos asignados</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(assignments).map(([vehiculoId, pedidos]) => (
+                <tr key={vehiculoId}>
+                  <td>{getVehicleInfo(vehiculoId)}</td>
+                  <td>
+                    <ul className="mb-0 ps-3">
+                      {pedidos.map(id => (
+                        <li key={id}>{getPedidoResumen(id)}</li>
+                      ))}
+                    </ul>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {Object.entries(assignments).map(([vehiculoId, pedidos]) => (
-                  <tr key={vehiculoId}>
-                    <td>{getVehicleInfo(vehiculoId)}</td>
-                    <td>
-                      {pedidos.length > 0 ? (
-                        <ul className="mb-0 ps-3">
-                          {pedidos.map(id => (
-                            <li key={id}>{getPedidoResumen(id)}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        'Sin pedidos asignados'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
-        {unassignedOrders.length > 0 && (
-          <div className="mt-4 alert alert-warning">
+      {/* 🔹 Pedidos no asignados */}
+      {unassignedOrders.length > 0 && (
+        <section className="mb-4">
+          <div className="alert alert-warning">
             <h4>Pedidos no asignados</h4>
-            <p>Los siguientes pedidos no pudieron ser asignados a ningún vehículo:</p>
+            <p>Los siguientes pedidos no pudieron ser asignados:</p>
             <table className="table table-bordered">
               <thead>
                 <tr>
-                  <th>ID Pedido</th>
+                  <th>ID</th>
                   <th>Dirección</th>
-                  <th>Peso (kg)</th>
-                  <th>Volumen (m³)</th>
+                  <th>Peso</th>
+                  <th>Volumen</th>
                 </tr>
               </thead>
               <tbody>
                 {unassignedOrders.map(id => {
-                  const details = getPedidoDetails(id);
+                  const d = getPedidoDetails(id);
                   return (
                     <tr key={id}>
                       <td>{id}</td>
-                      <td>{details.direccion || 'N/A'}</td>
-                      <td>{details.peso || 'N/A'}</td>
-                      <td>{details.volumen || 'N/A'}</td>
+                      <td>{d.direccion}</td>
+                      <td>{d.peso}</td>
+                      <td>{d.volumen}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        )}
+        </section>
+      )}
+
+      {/* 🔹 Tablas opcionales */}
+      <section className="mb-4">
+        <h2>Todos los Pedidos</h2>
+        <PedidoTable pedidos={orders} />
       </section>
 
       <section className="mb-4">
-        <h2>Visualización de Mapas</h2>
-        <p>Próximamente integración con Google Maps para mostrar pedidos, rutas y tráfico.</p>
+        <h2>Vehículos disponibles</h2>
+        <VehicleTable vehicles={vehiculosDisponibles} />
       </section>
 
+      {/* 🔹 Futuro: IA */}
       <section className="mb-4">
-        <h2>Inteligencia Artificial</h2>
+        <h2>IA - Funciones próximas</h2>
         <ul>
-          <li>ETA - Predicción de duración de entrega</li>
-          <li>Asignación mejorada de pedidos</li>
-          <li>Recomendación de horarios de salida</li>
+          <li>Predicción de ETA</li>
+          <li>Recomendación de rutas óptimas</li>
+          <li>Gamificación de conductores</li>
           <li>Detección de zonas problemáticas</li>
-          <li>Ranking y gamificación de conductores</li>
         </ul>
-        <p>Estas funcionalidades se irán integrando en próximas versiones.</p>
       </section>
     </div>
   );
