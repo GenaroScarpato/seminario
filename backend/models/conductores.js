@@ -24,40 +24,51 @@ const getAllConductores = async (pool) => {
   return rows;
 };
 
+const createConductor = async (pool, data) => {
+  const {
+    nombre,
+    apellido = null,
+    dni,
+    url_licencia = null,
+    telefono = null,
+    email = null,
+    direccion = null,
+    estado = 'disponible',
+    vehiculo_id = null,
+    password // ⬅️ campo nuevo
+  } = data;
 
-  const createConductor = async (pool, data) => {
-    const {
-      nombre,
-      apellido = null,
-      dni,
-      url_licencia = null,
-      telefono = null,
-      email = null,
-      direccion = null,
-      estado = 'disponible',
-      vehiculo_id = null,  // <-- nuevo campo
-    } = data;
-  
-    if (!nombre || !dni) {
-      throw new Error('Faltan campos requeridos: nombre y dni');
-    }
-  
-    const query = `
-      INSERT INTO conductores (
-        nombre, apellido, dni, url_licencia, telefono, email, direccion, estado, vehiculo_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-  
-    const values = [nombre, apellido, dni, url_licencia, telefono, email, direccion, estado, vehiculo_id];
-  
-    try {
-      const { rows } = await pool.query(query, values);
-      return rows[0];
-    } catch (error) {
-      throw error;
-    }
-  };
+  if (!nombre || !dni || !password) {
+    throw new Error('Faltan campos requeridos: nombre, dni y password');
+  }
+
+  const query = `
+    INSERT INTO conductores (
+      nombre, apellido, dni, url_licencia, telefono, email, direccion, estado, vehiculo_id, password
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING id, nombre, apellido, dni, email, estado;
+  `;
+
+  const values = [
+    nombre,
+    apellido,
+    dni,
+    url_licencia,
+    telefono,
+    email,
+    direccion,
+    estado,
+    vehiculo_id,
+    password // ⬅️ importante
+  ];
+
+  try {
+    const { rows } = await pool.query(query, values);
+    return rows[0];
+  } catch (error) {
+    throw error;
+  }
+};
   
   
   const getConductorById = async (pool, id) => {

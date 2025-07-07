@@ -1,5 +1,6 @@
 // controllers/conductorController.js
 const conductorModel = require('../models/conductores');
+const bcrypt = require('bcrypt'); 
 
 
 const handleError = (res, error) => {
@@ -56,18 +57,19 @@ create = async (req, res) => {
       apellido, 
       dni, 
       email, 
+      password, // ⬅️ nuevo
       telefono, 
       url_licencia, 
       estado = 'disponible',
       direccion,
-      vehiculo_id = null  // <-- agregado
+      vehiculo_id = null
     } = req.body;
 
     // Validación de campos requeridos
-    if (!nombre || !dni || !email) {
+    if (!nombre || !dni || !email || !password) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Faltan campos requeridos: nombre, dni y email son obligatorios' 
+        error: 'Faltan campos requeridos: nombre, dni, email y password son obligatorios' 
       });
     }
 
@@ -80,22 +82,27 @@ create = async (req, res) => {
       });
     }
 
+    // 🔐 Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const conductor = await conductorModel.createConductor(req.pool, {
       nombre,
       apellido: apellido || null,
       dni,
       email,
+      password: hashedPassword, // ⬅️ importante
       telefono: telefono || null,
       url_licencia: url_licencia || null,
       estado,
       direccion: direccion || null,
-      vehiculo_id  // <-- pasa el vehículo aquí
+      vehiculo_id
     });
-    
+
     res.status(201).json({
       success: true,
       data: conductor
     });
+
   } catch (error) {
     console.error('Error en controlador create:', error);
     handleError(res, error);

@@ -81,6 +81,8 @@ class Server {
         this.app.use("/api/rutas", require('./routes/rutas'));
         this.app.use("/api/feedback", require('./routes/feedback'));
         this.app.use("/api/conductores", require('./routes/conductores'));
+        this.app.use("/api/auth", require('./routes/auth'));
+
 
         console.log('🛣️ Rutas cargadas');
     }

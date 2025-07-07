@@ -1,10 +1,14 @@
 from sklearn.cluster import KMeans
 import numpy as np
 
+# Coordenadas base fijo (base de reparto)
+BASE_LAT = -34.58402190
+BASE_LON = -58.46702480
+
 def nearest_neighbor(points):
     n = len(points)
     unvisited = list(range(1, n))
-    route = [0]
+    route = [0]  # empezamos en base (índice 0)
 
     while unvisited:
         last = route[-1]
@@ -108,18 +112,24 @@ def asignar_pedidos_logica(pedidos, vehiculos):
 
         # Obtener los pedidos originales con coordenadas
         pedidos_del_vehiculo = [p for p in pedidos if p['id'] in pedidos_ids]
-        puntos = np.array([[p['lat'], p['lon']] for p in pedidos_del_vehiculo])
+
+        # Crear array con base + pedidos
+        puntos_base = np.array([[BASE_LAT, BASE_LON]])
+        puntos_pedidos = np.array([[p['lat'], p['lon']] for p in pedidos_del_vehiculo])
+        puntos = np.vstack([puntos_base, puntos_pedidos])  # base en posición 0
 
         if len(puntos) <= 2:
-            rutas_optimizadas[vehiculo_id] = pedidos_ids  # No hace falta optimizar
+            # No optimizamos si solo hay 1 pedido
+            rutas_optimizadas[vehiculo_id] = [pedidos_ids[0]] if pedidos_ids else []
             continue
 
-        # Aplicar heurísticas TSP
+        # TSP con base fija: empezamos en base (índice 0)
         ruta_nn_idx = nearest_neighbor(puntos)
         ruta_2opt_idx = two_opt(ruta_nn_idx, puntos)
 
-        # Mapear índices optimizados a IDs de pedidos
-        ruta_ids_ordenada = [pedidos_del_vehiculo[i]['id'] for i in ruta_2opt_idx]
+        # Omitimos el 0 (base) y convertimos índices a IDs pedidos
+        ruta_ids_ordenada = [pedidos_del_vehiculo[i-1]['id'] for i in ruta_2opt_idx if i != 0]
+
         rutas_optimizadas[vehiculo_id] = ruta_ids_ordenada
 
     return {

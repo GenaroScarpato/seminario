@@ -150,19 +150,18 @@ const DriversAdmin = () => {
 
       {/* Modal con react-bootstrap */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg" backdrop="static" keyboard={false}>
-        <Modal.Header closeButton>
-          <Modal.Title>{selectedDriver ? 'Editar' : 'Nuevo'} Conductor</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {}
-          <DriverForm onSubmit={handleSubmit} driver={selectedDriver} vehicles={vehicles}   />
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Cerrar
-          </Button>
-        </Modal.Footer>
-      </Modal>
+  <Modal.Header closeButton>
+    <Modal.Title>{selectedDriver ? 'Editar' : 'Nuevo'} Conductor</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <DriverForm 
+      onSubmit={handleSubmit} 
+      driver={selectedDriver} 
+      vehicles={vehicles} 
+    />
+  </Modal.Body>
+</Modal>
+
     </div>
   );
 };

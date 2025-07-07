@@ -5,6 +5,7 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
     nombre: driver?.nombre || '',
     apellido: driver?.apellido || '',
     dni: driver?.dni || '',
+    password: driver?.password || driver?.dni || '', // Usar DNI como contraseña por defecto
     telefono: driver?.telefono || '',
     email: driver?.email || '',
     licencia: driver?.licencia || '',
@@ -47,6 +48,11 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
       newErrors.email = 'El formato del email no es válido';
     }
     if (!formData.licencia.trim()) newErrors.licencia = 'La licencia es requerida';
+if (!formData.password.trim()) {
+  newErrors.password = 'La contraseña es requerida';
+} else if (formData.password.length < 6) {
+  newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+}
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -142,6 +148,8 @@ if (errData?.message) {
           {errors.dni && <div className="invalid-feedback">{errors.dni}</div>}
         </div>
 
+
+        
         <div className="col-md-6 mb-3">
           <label htmlFor="telefono" className="form-label">Teléfono</label>
           <input
@@ -154,6 +162,19 @@ if (errData?.message) {
             placeholder="Ej: +54 9 11 1234-5678"
           />
         </div>
+        <div className="col-md-6 mb-3">
+  <label htmlFor="password" className="form-label">Contraseña *</label>
+  <input
+    type="password"
+    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+    id="password"
+    name="password"
+    value={formData.password}
+    onChange={handleChange}
+    required
+  />
+  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+</div>
 
         <div className="col-md-6 mb-3">
           <label htmlFor="email" className="form-label">Email *</label>
@@ -218,28 +239,21 @@ if (errData?.message) {
         </div>
 
         <div className="col-12 mt-4">
-          <div className="d-flex justify-content-end gap-2">
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => window.history.back()}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Guardando...
-                </>
-              ) : 'Guardar'}
-            </button>
-          </div>
+          <div className="col-12 mt-4 d-flex justify-content-end">
+  <button
+    type="submit"
+    className="btn btn-primary"
+    disabled={isSubmitting}
+  >
+    {isSubmitting ? (
+      <>
+        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Guardando...
+      </>
+    ) : 'Guardar'}
+  </button>
+</div>
+
         </div>
       </div>
     </form>
