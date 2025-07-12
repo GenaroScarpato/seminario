@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 import { OrderContext } from '../../context/OrderContext.jsx';
 import { MapContext } from '../../context/MapContext.jsx';
@@ -25,6 +26,11 @@ const getIconByEstado = (estado) => {
   }
 };
 
+const iconConductor = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/1995/1995621.png',
+  iconSize: [32, 32],
+});
+
 const Mapa = () => {
   const { orders } = useContext(OrderContext);
   const { mapState } = useContext(MapContext);
@@ -32,6 +38,10 @@ const Mapa = () => {
   const { drivers } = useContext(DriverContext);
 
   const [rutasOptimizadas, setRutasOptimizadas] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
+  const [socketError, setSocketError] = useState(null);
+  const socketRef = useRef(null);
+
   const assignments = mapState.assignments;
 
   const validOrders = orders
@@ -56,13 +66,12 @@ const Mapa = () => {
           const res = await axios.get(`http://router.project-osrm.org/route/v1/driving/${puntos.join(';')}?overview=full&geometries=geojson`);
           const route = res.data.routes[0];
           const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-          console.log('Ruta OSRM:', route);
 
           rutas.push({ 
             vehiculoId, 
             ruta: coords, 
-              duracion: route.duration,    // en segundos
-             distancia: route.distance   
+            duracion: route.duration,
+            distancia: route.distance   
           });
         } catch (err) {
           console.error(`Error ruta ${vehiculoId}:`, err);
@@ -75,11 +84,95 @@ const Mapa = () => {
     fetchRoutes();
   }, [assignments, orders]);
 
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+    console.log('⌛ Conectando a:', socketUrl);
+
+    socketRef.current = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    });
+
+    const socket = socketRef.current;
+
+    socket.on('connect', () => {
+      console.log('✅ Conexión establecida ID:', socket.id);
+      setSocketError(null);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Error de conexión:', err.message);
+      setSocketError(`Error de conexión: ${err.message}`);
+    });
+
+    socket.on('ubicacion_conductor', (data) => {
+      console.log('📍 Ubicación recibida:', data);
+      if (!data || isNaN(data.lat) || isNaN(data.lng)) {
+        console.error('Datos de ubicación inválidos:', data);
+        return;
+      }
+
+      setUbicaciones(prev => {
+        const otrasUbicaciones = prev.filter(u => u.dni !== data.dni);
+        return [...otrasUbicaciones, {
+          dni: data.dni,
+          lat: parseFloat(data.lat),
+          lng: parseFloat(data.lng),
+          timestamp: data.timestamp || new Date().toISOString()
+        }];
+      });
+    });
+
+    // Enviar ubicación de prueba cada 5 segundos
+    const interval = setInterval(() => {
+      if (socket.connected) {
+        const testData = {
+          dni: 'test123',
+          lat: -34.58 + Math.random() * 0.01,
+          lng: -58.46 + Math.random() * 0.01,
+          timestamp: new Date().toISOString(),
+        };
+        socket.emit('ubicacion', testData);
+        console.log('📤 Enviando ubicación de prueba:', testData);
+      }
+    }, 5000);
+
+    socket.on('disconnect', (reason) => {
+      console.log('⚠️ Desconectado:', reason);
+    });
+
+    return () => {
+      clearInterval(interval);
+      console.log('🧹 Limpiando socket');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div style={{ width: '100%' }}>
+      {socketError && (
+        <div className="alert alert-warning">
+          {socketError} - Las ubicaciones en tiempo real no están disponibles
+        </div>
+      )}
+
       <div style={{ height: '500px', width: '100%' }}>
-        <MapContainer center={basePosition} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap contributors' />
+        <MapContainer 
+          center={basePosition} 
+          zoom={13} 
+          scrollWheelZoom 
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer 
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+            attribution='© OpenStreetMap contributors' 
+          />
 
           <Marker position={basePosition}>
             <Popup>🚩 Punto de partida: Base Triunvirato y Tronador</Popup>
@@ -95,9 +188,31 @@ const Mapa = () => {
             </Marker>
           ))}
 
+          {ubicaciones.map((ubicacion) => (
+            <Marker
+              key={`${ubicacion.dni}-${ubicacion.timestamp}`}
+              position={[ubicacion.lat, ubicacion.lng]}
+              icon={iconConductor}
+            >
+              <Popup>
+                <b>🧍 Conductor: {ubicacion.dni}</b><br />
+                Última actualización: {new Date(ubicacion.timestamp).toLocaleTimeString()}
+              </Popup>
+            </Marker>
+          ))}
+
           {rutasOptimizadas.map(({ vehiculoId, ruta }, idx) => {
             const colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'black'];
-            return <Polyline key={vehiculoId} positions={ruta} pathOptions={{ color: colors[idx % colors.length], weight: 5 }} />;
+            return (
+              <Polyline 
+                key={vehiculoId} 
+                positions={ruta} 
+                pathOptions={{ 
+                  color: colors[idx % colors.length], 
+                  weight: 5 
+                }} 
+              />
+            );
           })}
         </MapContainer>
       </div>
@@ -127,7 +242,11 @@ const Mapa = () => {
                 )}
                 <ul className="list-group list-group-flush">
                   <li className="list-group-item">🚩 Punto de partida: Base Triunvirato y Tronador</li>
-                  {pedidos.map(p => <li key={p.id} className="list-group-item">📦 Pedido #{p.id} – {p.direccion}</li>)}
+                  {pedidos.map(p => (
+                    <li key={p.id} className="list-group-item">
+                      📦 Pedido #{p.id} – {p.direccion}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

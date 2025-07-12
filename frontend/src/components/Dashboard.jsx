@@ -5,7 +5,7 @@ import { VehicleContext } from '../context/VehicleContext';
 import PedidoTable from './pedidos/PedidoTable';
 import VehicleTable from './vehicles/VehicleTable';
 import { MapContext } from '../context/MapContext';
-
+import { API_BASE_URL, API_ROUTES } from '@config/api';
 const Dashboard = () => {
   const { orders } = useContext(OrderContext);
   const { vehicles } = useContext(VehicleContext);
@@ -15,7 +15,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const { setMapState } = useContext(MapContext);
 
-  const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible');
+const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' );
 
   const asignarPedidos = async () => {
     setLoading(true);
@@ -28,9 +28,13 @@ const Dashboard = () => {
         pedidos: orders,
         vehiculos: vehiculosDisponibles
       });
+            const asignaciones = res.data.asignaciones || {};
+            const no_asignados = res.data.no_asignados || [];
 
-      setAssignments(res.data.asignaciones);
-      setUnassignedOrders(res.data.no_asignados || []);
+          await axios.post(`${API_BASE_URL}${API_ROUTES.ASIGNACIONES.ASIGNAR_PEDIDOS}`, { asignaciones });
+
+      setAssignments(asignaciones);
+      setUnassignedOrders(no_asignados);
       setMapState(prev => ({
         ...prev,
         assignments: res.data.asignaciones,

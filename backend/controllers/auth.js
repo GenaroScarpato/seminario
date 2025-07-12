@@ -2,8 +2,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const loginConductor = async (req, res) => {
+    console.log('Login request received:', req.body);
     const { dni, password } = req.body;
-console.log(dni, password)
     if (!dni || !password) {
         return res.status(400).json({ msg: 'DNI y contraseña requeridos' });
     }

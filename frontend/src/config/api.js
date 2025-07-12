@@ -18,5 +18,8 @@ export const API_ROUTES = {
     CREATE: '/api/conductores',
     UPDATE: '/api/conductores/:id',
     DELETE: '/api/conductores/:id'
+  },
+  ASIGNACIONES: {
+    ASIGNAR_PEDIDOS: '/api/asignar-rutas',
   }
 };

@@ -12,7 +12,7 @@ const validarJWT = (req, res, next) => {
     const tokenSinBearer = token.startsWith('Bearer ') ? token.slice(7) : token;
 
     const payload = jwt.verify(tokenSinBearer, process.env.JWT_SECRET);
-    req.usuario = payload; // guardamos data del token para usar en rutas
+    req.user = payload; // guardamos data del token para usar en rutas
     next();
   } catch (error) {
     return res.status(401).json({ msg: 'Token no válido' });
