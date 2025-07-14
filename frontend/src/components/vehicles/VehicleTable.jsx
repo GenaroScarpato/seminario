@@ -1,7 +1,6 @@
 import React from 'react';
 
-
-const VehicleTable = ({ vehicles, onDelete }) => {
+const VehicleTable = ({ vehicles, onDelete, showActions = true }) => {
   return (
     <div className="table-responsive">
       <table className="table table-striped">
@@ -12,7 +11,7 @@ const VehicleTable = ({ vehicles, onDelete }) => {
             <th>Modelo</th>
             <th>Año</th>
             <th>Tipo</th>
-            <th>Acciones</th>
+            {showActions && <th>Acciones</th>}
           </tr>
         </thead>
         <tbody>
@@ -23,11 +22,22 @@ const VehicleTable = ({ vehicles, onDelete }) => {
               <td>{vehicle.modelo}</td>
               <td>{vehicle.anio}</td>
               <td>{vehicle.tipo}</td>
-              <td>
-                <button className="btn btn-danger btn-sm" onClick={() => onDelete(vehicle.id)}>Eliminar</button>
-              </td>
+              {showActions && (
+                <td>
+                  <button 
+                    className="btn btn-danger btn-sm" 
+                    onClick={() => onDelete(vehicle.id)}
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              )}
             </tr>
-          )) : <tr><td colSpan="6">No hay vehículos disponibles</td></tr>}
+          )) : (
+            <tr>
+              <td colSpan={showActions ? 6 : 5}>No hay vehículos disponibles</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

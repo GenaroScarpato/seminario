@@ -31,6 +31,25 @@ async function updatePedido(req, res) {
     res.status(400).json({ error: err.message });
   }
 }
+// En tu archivo de controlador (ej. controllers/pedidosController.js)
+
+async function updateEstadoPedido(req, res) {
+  try {
+    const id = req.params.id;
+    const { estado } = req.body; // Solo esperamos el campo 'estado'
+    if (!estado) {
+      return res.status(400).json({ error: 'El estado es requerido.' });
+    }
+    const pedidoActualizado = await pedidosModel.updateEstado(req.pool, id, estado);
+    res.json(pedidoActualizado);
+  } catch (err) {
+    console.error('Error al actualizar el estado del pedido:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor al actualizar el estado del pedido.' });
+  }
+}
+
+
+
 
 async function deletePedido(req, res) {
   try {
@@ -46,5 +65,6 @@ module.exports = {
   getPedidos,
   createPedido,
   updatePedido,
-  deletePedido
+  deletePedido,
+  updateEstadoPedido
 };

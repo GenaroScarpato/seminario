@@ -11,11 +11,24 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
     scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : ''
   });
 
+// NUEVO: actualizar cuando cambia el pedido
+useEffect(() => {
+  setFormData({
+    direccion: pedido?.direccion || '',
+    volumen: pedido?.volumen || '',
+    peso: pedido?.peso || '',
+    estado: pedido?.estado || 'pendiente',
+    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : ''
+  });
+}, [pedido]);
+
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
+  
   useEffect(() => {
     if (formData.direccion.length < 3) {
       setSuggestions([]);
@@ -116,10 +129,12 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
   };
 
   return (
-    <div className="container">
-      <form onSubmit={handleSubmit} className="needs-validation" noValidate>
-        <div className="mb-3 position-relative">
-          <label htmlFor="direccion" className="form-label">Dirección</label>
+  <div className="container">
+    <form onSubmit={handleSubmit} className="needs-validation" noValidate>
+      <div className="row">
+        {/* Dirección con sugerencias */}
+        <div className="mb-3 col-md-12 position-relative">
+          <label htmlFor="direccion" className="form-label fw-bold">Dirección</label>
           <input
             type="text"
             className="form-control"
@@ -146,8 +161,9 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
           )}
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="volumen" className="form-label">Volumen</label>
+        {/* Volumen y Peso */}
+        <div className="mb-3 col-md-6">
+          <label htmlFor="volumen" className="form-label fw-bold">Volumen (m³)</label>
           <input
             type="number"
             className="form-control"
@@ -157,11 +173,12 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
             onChange={handleChange}
             required
             step="any"
+            min="0"
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="peso" className="form-label">Peso</label>
+        <div className="mb-3 col-md-6">
+          <label htmlFor="peso" className="form-label fw-bold">Peso (kg)</label>
           <input
             type="number"
             className="form-control"
@@ -170,11 +187,13 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
             value={formData.peso}
             onChange={handleChange}
             step="any"
+            min="0"
           />
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="estado" className="form-label">Estado</label>
+        {/* Estado y Fecha */}
+        <div className="mb-3 col-md-6">
+          <label htmlFor="estado" className="form-label fw-bold">Estado</label>
           <select
             className="form-select"
             id="estado"
@@ -190,8 +209,8 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
           </select>
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="scheduled_at" className="form-label">Programado para</label>
+        <div className="mb-3 col-md-6">
+          <label htmlFor="scheduled_at" className="form-label fw-bold">Programado para</label>
           <input
             type="datetime-local"
             className="form-control"
@@ -201,19 +220,25 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
             onChange={handleChange}
           />
         </div>
+      </div>
 
-        {error && <div className="alert alert-danger">{error}</div>}
+      {error && <div className="alert alert-danger mt-2">{error}</div>}
 
-        <button
-          type="submit"
-          className="btn btn-primary w-100"
-          disabled={loading}
-        >
-          {loading ? 'Cargando...' : (pedido ? 'Actualizar' : 'Crear')} Pedido
-        </button>
-      </form>
-    </div>
-  );
+      <div className="row">
+        <div className="col-md-12 mt-3">
+          <button
+            type="submit"
+            className="btn btn-primary w-100 py-2 fw-bold"
+            disabled={loading}
+          >
+            {loading ? 'Cargando...' : (pedido ? 'Actualizar' : 'Crear')} Pedido
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+);
+
 };
 
 export default PedidoForm;

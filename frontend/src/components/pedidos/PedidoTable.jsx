@@ -1,6 +1,6 @@
 import React from 'react';
 
-const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
+const PedidoTable = ({ pedidos, onDelete, onEdit, showActions = true }) => {
   const pedidosValidos = Array.isArray(pedidos) ? pedidos : [];
 
   return (
@@ -14,13 +14,13 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
               <th>Peso (kg)</th>
               <th>Estado</th>
               <th>Programado para</th>
-              <th>Acciones</th>
+              {showActions && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {pedidosValidos.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center text-muted">
+                <td colSpan={showActions ? 6 : 5} className="text-center text-muted">
                   No hay pedidos disponibles.
                 </td>
               </tr>
@@ -29,29 +29,31 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
                 <tr key={pedido.id}>
                   <td>{pedido.direccion}</td>
                   <td>{pedido.volumen}</td>
-                  <td>{pedido.peso ?? '-'} </td>
+                  <td>{pedido.peso ?? '-'}</td>
                   <td>
                     <span className={`badge bg-${getStatusBadgeClass(pedido.estado)}`}>
                       {getStatusText(pedido.estado)}
                     </span>
                   </td>
                   <td>{pedido.scheduled_at ? new Date(pedido.scheduled_at).toLocaleString() : '-'}</td>
-                  <td>
-                    <div className="btn-group">
-                      <button
-                        className="btn btn-sm btn-primary me-1"
-                        onClick={() => onEdit(pedido)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => onDelete(pedido.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
+                  {showActions && (
+                    <td>
+                      <div className="btn-group">
+                        <button
+                          className="btn btn-sm btn-primary me-1"
+                          onClick={() => onEdit(pedido)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => onDelete(pedido.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -61,7 +63,6 @@ const PedidoTable = ({ pedidos, onDelete, onEdit }) => {
     </div>
   );
 };
-
 const getStatusBadgeClass = (status) => {
   switch (status) {
     case 'pendiente':

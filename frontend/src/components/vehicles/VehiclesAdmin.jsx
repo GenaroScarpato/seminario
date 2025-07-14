@@ -5,7 +5,7 @@ import { API_BASE_URL, API_ROUTES } from '../../config/api';
 import VehicleForm from './VehicleForm';
 import VehicleFilters from './VehicleFilters';
 
-const VehiclesAdmin = () => {
+const VehiclesAdmin = ({ showActions = true }) => {  // Añadimos la prop showActions
   const { vehicles, setVehicles } = useContext(VehicleContext);
   const [filteredVehicles, setFilteredVehicles] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -124,13 +124,15 @@ const VehiclesAdmin = () => {
     }
   };
 
-  return (
+ return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Administración de Vehículos</h2>
-        <button className="btn btn-primary" onClick={handleOpenNew}>
-          Nuevo Vehículo
-        </button>
+        {showActions && (  // Solo muestra el botón si showActions es true
+          <button className="btn btn-primary" onClick={handleOpenNew}>
+            Nuevo Vehículo
+          </button>
+        )}
       </div>
 
       <div className="mb-3">
@@ -150,7 +152,7 @@ const VehiclesAdmin = () => {
             <th>Tipo</th>
             <th>Capacidad</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            {showActions && <th>Acciones</th>}  {/* Columna condicional */}
           </tr>
         </thead>
         <tbody>

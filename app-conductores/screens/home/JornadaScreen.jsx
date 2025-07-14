@@ -14,6 +14,7 @@ const JornadaScreen = () => {
   const [pedidoIndex, setPedidoIndex] = useState(0);
   const [socket, setSocket] = useState(null);
   const [activo, setActivo] = useState(false);
+  const locationSubscription = useRef(null); // Ref para almacenar la suscripción de ubicación
 
   // Bloquear salida si no terminó la jornada
   useEffect(() => {
@@ -26,51 +27,89 @@ const JornadaScreen = () => {
       );
       return true; // Bloquea botón atrás
     };
-    BackHandler.addEventListener("hardwareBackPress", backAction);
-    return () => BackHandler.removeEventListener("hardwareBackPress", backAction);
+
+// Ahora:
+const subscription = BackHandler.addEventListener("hardwareBackPress", backAction);
+return () => {
+  if (subscription) {
+    subscription.remove();
+  }
+};
   }, []);
 
   useEffect(() => {
-    const startSocket = async () => {
+    const startSocketAndLocationTracking = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu ubicación');
+        Alert.alert('Permiso denegado', 'Necesitamos acceso a tu ubicación.');
         return;
       }
+
+      // Inicializar conexión de socket
       const s = io('http://192.168.0.231:3000', { transports: ['websocket'] });
       setSocket(s);
       setActivo(true);
 
-      const intervalId = setInterval(async () => {
-        const location = await Location.getCurrentPositionAsync({});
-        const { latitude, longitude } = location.coords;
-
-        s.emit('ubicacion', {
-          lat: latitude,
-          lng: longitude,
-          dni: pedidos[0]?.dni || 'sin-dni', // ajusta si pasás dni en params
-          timestamp: new Date().toISOString(),
-        });
-      }, 5000);
-
-      return () => {
-        clearInterval(intervalId);
-        s.disconnect();
-      };
+      // Empezar a observar la ubicación con intervalos especificados
+      locationSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High, // Alta precisión para mejores coordenadas
+          timeInterval: 120000, // Actualizar cada 2 minutos (120,000 ms)
+          distanceInterval: 50, // Actualizar si se movió al menos 50 metros
+        },
+        (location) => {
+          const { latitude, longitude } = location.coords;
+          // Emitir datos de ubicación al servidor
+          s.emit('ubicacion', {
+            lat: latitude,
+            lng: longitude,
+            dni: pedidos[0]?.dni || 'sin-dni', // Ajustar si el DNI se pasa en los parámetros
+            timestamp: new Date().toISOString(),
+          });
+        }
+      );
     };
 
-    startSocket();
+    startSocketAndLocationTracking();
 
-  }, []);
+    // Función de limpieza para el efecto
+    return () => {
+      // Limpiar suscripción de ubicación
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+      // Desconectar socket
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, []); // El array de dependencias vacío significa que este efecto se ejecuta una vez al montar y se limpia al desmontar
 
   const pedidoActual = pedidos[pedidoIndex];
 
+  // Función para marcar el pedido como "en camino"
   const marcarEnCamino = async () => {
     try {
-      await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'en camino' });
+      await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'en_camino' });
+      // Opcional: Actualizar el estado local del pedido si es necesario
+      // setPedidos(prevPedidos => prevPedidos.map(p => p.id === pedidoActual.id ? { ...p, estado: 'en camino' } : p));
     } catch (error) {
-      Alert.alert('Error', 'No se pudo actualizar el estado del pedido.');
-      return;
+      Alert.alert('Error', 'No se pudo actualizar el estado del pedido a "en camino".');
+      console.error('Error al marcar en camino:', error); // Para depuración
+    }
+  };
+
+  // NUEVA FUNCIÓN: Marcar pedido como "entregado"
+  const marcarComoEntregado = async () => {
+    try {
+      await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'entregado' });
+      Alert.alert('Éxito', 'Pedido marcado como entregado.', [
+        { text: 'OK', onPress: siguientePedido } // Pasa al siguiente pedido después de entregar
+      ]);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo actualizar el estado del pedido a "entregado".');
+      console.error('Error al marcar como entregado:', error); // Para depuración
     }
   };
 
@@ -81,14 +120,17 @@ const JornadaScreen = () => {
     if (app === 'waze') url = `https://waze.com/ul?q=${direccionEncoded}`;
     else url = `https://www.google.com/maps/dir/?api=1&destination=${direccionEncoded}`;
 
-    marcarEnCamino();
+    marcarEnCamino(); // Marca el pedido como "en camino" al iniciar la navegación
     Linking.openURL(url);
   };
 
   const siguientePedido = () => {
     if (pedidoIndex + 1 >= pedidos.length) {
-      Alert.alert('Fin de jornada', 'Terminaste todos los pedidos.');
+      Alert.alert('Fin de jornada', 'Has terminado todos los pedidos.');
       socket?.disconnect();
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
       navigation.goBack();
       return;
     }
@@ -96,12 +138,15 @@ const JornadaScreen = () => {
   };
 
   const terminarJornada = () => {
-    Alert.alert('Confirmar', '¿Seguro que querés terminar la jornada?', [
+    Alert.alert('Confirmar', '¿Seguro que quieres terminar la jornada?', [
       { text: 'Cancelar' },
       {
         text: 'Sí, terminar',
         onPress: () => {
           socket?.disconnect();
+          if (locationSubscription.current) {
+            locationSubscription.current.remove();
+          }
           navigation.goBack();
         },
       },
@@ -111,7 +156,7 @@ const JornadaScreen = () => {
   if (!pedidoActual) {
     return (
       <View style={styles.container}>
-        <Text>No hay pedidos para esta jornada.</Text>
+        <Text style={styles.text}>No hay pedidos para esta jornada.</Text>
         <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
           <Text style={styles.buttonText}>Volver</Text>
         </TouchableOpacity>
@@ -132,12 +177,23 @@ const JornadaScreen = () => {
         <Text style={styles.buttonText}>Ir con Google Maps</Text>
       </TouchableOpacity>
 
+      {/* NUEVO BOTÓN: Marcar como Entregado */}
+      <TouchableOpacity style={[styles.button, styles.deliveredButton]} onPress={marcarComoEntregado}>
+        <Text style={styles.buttonText}>✅ Marcar como Entregado</Text>
+      </TouchableOpacity>
+
+      {/* El botón "Siguiente pedido" ahora se llama automáticamente después de "Entregado" */}
+      {/* Si aún quieres un botón de "Siguiente pedido" independiente por alguna razón, puedes mantenerlo,
+          pero el flujo normal sería marcar como entregado y luego pasar al siguiente.
+          Lo comento por ahora para un flujo más directo: */}
+      {/*
       <TouchableOpacity style={styles.button} onPress={siguientePedido}>
         <Text style={styles.buttonText}>Siguiente pedido</Text>
       </TouchableOpacity>
+      */}
 
-      <TouchableOpacity style={[styles.button, { backgroundColor: 'red' }]} onPress={terminarJornada}>
-        <Text style={styles.buttonText}>Terminar jornada</Text>
+      <TouchableOpacity style={[styles.button, styles.endWorkdayButton]} onPress={terminarJornada}>
+        <Text style={styles.buttonText}>🛑 Terminar jornada</Text>
       </TouchableOpacity>
     </View>
   );
@@ -145,17 +201,32 @@ const JornadaScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-  text: { fontSize: 18, marginBottom: 12, textAlign: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, color: '#333' },
+  text: { fontSize: 18, marginBottom: 12, textAlign: 'center', color: '#555' },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Azul para botones de navegación
     padding: 14,
     borderRadius: 10,
     marginVertical: 8,
     width: '80%',
     alignItems: 'center',
+    shadowColor: '#000', // Sombra para efecto "copado"
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  deliveredButton: {
+    backgroundColor: '#28a745', // Verde para "Entregado"
+    marginTop: 20, // Más espacio arriba para destacarlo
+    paddingVertical: 16, // Un poco más alto
+    fontSize: 18, // Texto un poco más grande
+  },
+  endWorkdayButton: {
+    backgroundColor: '#dc3545', // Rojo para "Terminar jornada"
+    marginTop: 20,
+  }
 });
 
 export default JornadaScreen;

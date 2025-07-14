@@ -44,10 +44,11 @@ const PedidosAdmin = () => {
     }
   };
 
-  const handleEditPedido = (pedido) => {
-    setSelectedPedido(pedido);
-    setShowModal(true);
-  };
+ const handleEditPedido = (pedido) => {
+  console.log('Pedido a editar:', pedido); // Verifica los datos en consola
+  setSelectedPedido(pedido);
+  setShowModal(true);
+};
 
   const handleOpenNew = () => {
     setSelectedPedido(null);

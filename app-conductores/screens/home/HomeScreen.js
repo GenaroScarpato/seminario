@@ -63,6 +63,7 @@ const HomeScreen = () => {
 
     const intervalId = setInterval(async () => {
       const location = await Location.getCurrentPositionAsync({});
+      console.log('📍 Ubicación recibida:', location);
       const { latitude, longitude } = location.coords;
 
       s.emit('ubicacion', {

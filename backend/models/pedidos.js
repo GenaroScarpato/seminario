@@ -55,6 +55,23 @@ async function update(pool, id, data) {
   return result.rows[0];
 }
 
+async function updateEstado(pool, id, estado) {
+  const query = `
+    UPDATE pedidos SET
+      estado = $1
+    WHERE id = $2
+    RETURNING *;
+  `;
+  const values = [estado, id];
+  const result = await pool.query(query, values);
+  if (result.rows.length === 0) {
+    throw new Error(`Pedido con ID ${id} no encontrado.`);
+  }
+  return result.rows[0];
+}
+
+
+
 async function deletePedido(pool, id) {
   await pool.query('DELETE FROM pedidos WHERE id = $1', [id]);
 }
@@ -63,5 +80,6 @@ module.exports = {
   getAll,
   create,
   update,
-  delete: deletePedido
+  delete: deletePedido,
+  updateEstado
 };

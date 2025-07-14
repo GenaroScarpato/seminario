@@ -17,6 +17,8 @@ const Dashboard = () => {
 
 const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' );
 
+const ordersPending = orders.filter(p => p.estado === 'pendiente');
+
   const asignarPedidos = async () => {
     setLoading(true);
     setError(null);
@@ -25,7 +27,7 @@ const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' );
 
     try {
       const res = await axios.post('http://127.0.0.1:8000/asignar-pedidos', {
-        pedidos: orders,
+        pedidos: ordersPending,
         vehiculos: vehiculosDisponibles
       });
             const asignaciones = res.data.asignaciones || {};
@@ -216,12 +218,12 @@ const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' );
       {/* 🔹 Tablas opcionales */}
       <section className="mb-4">
         <h2>Todos los Pedidos</h2>
-        <PedidoTable pedidos={orders} />
-      </section>
+<PedidoTable pedidos={orders} showActions={false} /> 
+     </section>
 
       <section className="mb-4">
         <h2>Vehículos disponibles</h2>
-        <VehicleTable vehicles={vehiculosDisponibles} />
+        <VehicleTable vehicles={vehiculosDisponibles} showActions={false} />
       </section>
 
       {/* 🔹 Futuro: IA */}
