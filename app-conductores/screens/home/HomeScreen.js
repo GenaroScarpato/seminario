@@ -80,12 +80,28 @@ const HomeScreen = () => {
     };
   };
 
+  const getEstadoStyle = (estado) => {
+    switch (estado) {
+      case 'pendiente':
+        return { color: '#FFC107' }; // Amarillo
+      case 'en_transito':
+        return { color: '#2196F3' }; // Azul
+      case 'entregado':
+        return { color: '#4CAF50' }; // Verde
+      case 'fallido':
+        return { color: '#F44336' }; // Rojo
+      default:
+        return { color: '#607D8B' }; // Gris
+    }
+  };
   const renderPedido = ({ item }) => (
     <TouchableOpacity onPress={() => navigation.navigate('DeliveryDetail', { pedido: item })}>
       <View style={styles.pedidoItem}>
         <Text style={styles.pedidoDireccion}>{item.direccion}</Text>
         <Text style={styles.pedidoInfo}>Volumen: {item.volumen} | Peso: {item.peso}</Text>
-        <Text style={styles.pedidoEstado}>Estado: {item.estado}</Text>
+<Text style={[styles.pedidoEstado, getEstadoStyle(item.estado)]}>
+  Estado: {item.estado}
+</Text>
       </View>
     </TouchableOpacity>
   );
@@ -98,6 +114,8 @@ const HomeScreen = () => {
       </View>
     );
   }
+const entregados = pedidos.filter(p => p.estado === 'entregado');
+const pendientes = pedidos.filter(p => p.estado !== 'entregado');
 
   return (
     <View style={styles.container}>
@@ -107,7 +125,11 @@ const HomeScreen = () => {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>📦 Pedidos asignados</Text>
+       <Text style={styles.cardTitle}>📦 Pedidos asignados</Text>
+<Text style={styles.resumenEstado}>
+  ✅ Entregados: <Text style={styles.entregado}>{entregados.length}</Text> | 🕓 Pendientes: <Text style={styles.pendiente}>{pendientes.length}</Text>
+</Text>
+
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>

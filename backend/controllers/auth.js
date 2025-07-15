@@ -19,6 +19,7 @@ const loginConductor = async (req, res) => {
         const conductor = result.rows[0];
 
         const match = await bcrypt.compare(password, conductor.password);
+        console.log('Match:', match);
         if (!match) {
             return res.status(401).json({ msg: 'DNI o contraseña incorrectoss' });
         }

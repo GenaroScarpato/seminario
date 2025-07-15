@@ -154,7 +154,7 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
       </section>
 
       {/* 🔹 Resultado de asignación */}
-      {assignments && (
+      {assignments &&  (
         <section className="mb-4">
           <h3>Resumen por vehículo</h3>
           <table className="table table-bordered">
@@ -180,7 +180,10 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
             </tbody>
           </table>
         </section>
-      )}
+      
+    )
+  
+      }
 
       {/* 🔹 Pedidos no asignados */}
       {unassignedOrders.length > 0 && (
@@ -230,9 +233,8 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
       <section className="mb-4">
         <h2>IA - Funciones próximas</h2>
         <ul>
-          <li>Predicción de ETA</li>
+          <li>Predicción de ETA </li> 
           <li>Recomendación de rutas óptimas</li>
-          <li>Gamificación de conductores</li>
           <li>Detección de zonas problemáticas</li>
         </ul>
       </section>

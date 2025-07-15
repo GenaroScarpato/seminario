@@ -8,6 +8,8 @@ import DriversAdmin from '@/components/drivers/DriversAdmin';
 import Dashboard from './components/Dashboard';
 import Mapa from '@/components/mapas/mapa';
 import { DriverProvider } from '@/context/DriverContext';
+import ReportesAdmin from '@/components/reportes/ReportesAdmin';
+
 
 const AdminDashboard = () => (
   <div className="container mt-5">
@@ -36,7 +38,7 @@ export default function App() {
           <Route path="vehiculos" element={<VehiclesAdmin />} />
           <Route path="conductores" element={<DriversAdmin />} />
           <Route path="mapa" element={<Mapa />} />
-          {/* Aquí puedes agregar más rutas según sea necesario */}
+          <Route path="reportes" element={<ReportesAdmin />} />
         </Route>
         <Route path="*" element={<h2>404 - Página no encontrada</h2>} />
       </Routes>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, BackHandler ,  Platform} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { io } from 'socket.io-client';
 import api from '../../services/api';
 import { Linking } from 'react-native';
+
 
 const JornadaScreen = () => {
   const navigation = useNavigation();
@@ -87,6 +88,8 @@ return () => {
   }, []); // El array de dependencias vacío significa que este efecto se ejecuta una vez al montar y se limpia al desmontar
 
   const pedidoActual = pedidos[pedidoIndex];
+  
+
 
   // Función para marcar el pedido como "en camino"
   const marcarEnCamino = async () => {
@@ -101,17 +104,25 @@ return () => {
   };
 
   // NUEVA FUNCIÓN: Marcar pedido como "entregado"
-  const marcarComoEntregado = async () => {
-    try {
-      await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'entregado' });
+const marcarComoEntregado = async () => {
+  try {
+    await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'entregado' });
+
+    // Detectar si es web y evitar Alert.alert
+    if (Platform.OS === 'web') {
+      alert('Pedido entregado con éxito'); // alert nativa de navegador
+      siguientePedido(); // llamar directamente
+    } else {
       Alert.alert('Éxito', 'Pedido marcado como entregado.', [
-        { text: 'OK', onPress: siguientePedido } // Pasa al siguiente pedido después de entregar
+        { text: 'OK', onPress: siguientePedido }
       ]);
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo actualizar el estado del pedido a "entregado".');
-      console.error('Error al marcar como entregado:', error); // Para depuración
     }
-  };
+  } catch (error) {
+    Alert.alert('Error', 'No se pudo actualizar el estado del pedido a "entregado".');
+    console.error('Error al marcar como entregado:', error);
+  }
+};
+
 
   const abrirNavegacion = (app) => {
     if (!pedidoActual) return;
@@ -138,6 +149,25 @@ return () => {
   };
 
   const terminarJornada = () => {
+  const quedanPendientes = pedidos.some(p => p.estado !== 'entregado');
+
+  if (quedanPendientes) {
+    Alert.alert('Atención', 'Aún tienes pedidos sin entregar. Completa todos antes de terminar la jornada.');
+    return;
+  }
+
+  if (Platform.OS === 'web') {
+    const confirmar = confirm('¿Seguro que quieres terminar la jornada?');
+    if (confirmar) {
+      socket?.disconnect();
+      if (locationSubscription.current) {
+   locationSubscription.current.remove(); 
+  locationSubscription.current = null;
+}
+
+      navigation.goBack();
+    }
+  } else {
     Alert.alert('Confirmar', '¿Seguro que quieres terminar la jornada?', [
       { text: 'Cancelar' },
       {
@@ -151,7 +181,8 @@ return () => {
         },
       },
     ]);
-  };
+  }
+};
 
   if (!pedidoActual) {
     return (
@@ -165,6 +196,7 @@ return () => {
   }
 
   return (
+    
     <View style={styles.container}>
       <Text style={styles.title}>Pedido {pedidoActual.id}</Text>
       <Text style={styles.text}>Dirección: {pedidoActual.direccion}</Text>
@@ -182,15 +214,7 @@ return () => {
         <Text style={styles.buttonText}>✅ Marcar como Entregado</Text>
       </TouchableOpacity>
 
-      {/* El botón "Siguiente pedido" ahora se llama automáticamente después de "Entregado" */}
-      {/* Si aún quieres un botón de "Siguiente pedido" independiente por alguna razón, puedes mantenerlo,
-          pero el flujo normal sería marcar como entregado y luego pasar al siguiente.
-          Lo comento por ahora para un flujo más directo: */}
-      {/*
-      <TouchableOpacity style={styles.button} onPress={siguientePedido}>
-        <Text style={styles.buttonText}>Siguiente pedido</Text>
-      </TouchableOpacity>
-      */}
+      
 
       <TouchableOpacity style={[styles.button, styles.endWorkdayButton]} onPress={terminarJornada}>
         <Text style={styles.buttonText}>🛑 Terminar jornada</Text>

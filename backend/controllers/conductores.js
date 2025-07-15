@@ -57,14 +57,13 @@ create = async (req, res) => {
       apellido, 
       dni, 
       email, 
-      password, // ⬅️ nuevo
+      password, 
       telefono, 
       url_licencia, 
       estado = 'disponible',
       direccion,
       vehiculo_id = null
     } = req.body;
-
     // Validación de campos requeridos
     if (!nombre || !dni || !email || !password) {
       return res.status(400).json({ 
@@ -109,17 +108,19 @@ create = async (req, res) => {
   }
 };
 
-
-update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const conductor = await conductorModel.getConductorById(req.pool, req.params.id);
+    
     if (!conductor) {
       return res.status(404).json({ message: 'Conductor no encontrado' });
     }
+
     const updated = await conductorModel.updateConductor(req.pool, req.params.id, req.body);
     res.json(updated);
   } catch (error) {
-    handleError(res, error);
+    console.error('Error al actualizar conductor:', error.message);
+    res.status(500).json({ message: 'Error del servidor', error: error.message });
   }
 };
 

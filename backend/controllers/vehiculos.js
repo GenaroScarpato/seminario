@@ -104,7 +104,6 @@ exports.crearVehiculo = async (req, res) => {
       estado: data.estado || 'disponible'
     });
     
-    console.log('Vehículo creado:', nuevo);
     res.status(201).json(nuevo);
   } catch (error) {
     console.error('Error detallado:', {

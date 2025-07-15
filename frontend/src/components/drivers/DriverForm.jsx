@@ -8,16 +8,18 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
     password: driver?.password || driver?.dni || '', // Usar DNI como contraseña por defecto
     telefono: driver?.telefono || '',
     email: driver?.email || '',
-    licencia: driver?.licencia || '',
+   url_licencia: driver?.url_licencia || '',
     estado: driver?.estado || 'disponible',
     vehiculo_id: driver?.vehiculo_id || ''
   });
+
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
 
-  useEffect(() => {
+const unassignedVehicles = vehicles.filter(v => v.conductor_id === null || v.conductor_id === undefined);
+useEffect(() => {
     if (driver?.vehiculo_id && vehicles.length > 0) {
       setFormData(prev => ({
         ...prev,
@@ -26,13 +28,13 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
     }
   }, [driver, vehicles]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+ const handleChange = (e) => {
+  const { name, value } = e.target;
+  setFormData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
 
   const validateForm = () => {
     const newErrors = {};
@@ -47,7 +49,7 @@ const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
     }
-    if (!formData.licencia.trim()) newErrors.licencia = 'La licencia es requerida';
+    if (!formData.url_licencia.trim()) newErrors.licencia = 'La licencia es requerida';
 if (!formData.password.trim()) {
   newErrors.password = 'La contraseña es requerida';
 } else if (formData.password.length < 6) {
@@ -71,13 +73,13 @@ if (!formData.password.trim()) {
     try {
       const dataToSend = {
         ...formData,
+            id: driver?.id,  
         vehiculo_id: formData.vehiculo_id || null
       };
 
       await onSubmit(dataToSend);
     } catch (error) {
      const errData = error?.response?.data;
-console.log('Error al enviar el formulario:', errData);
 
 if (errData?.message) {
   setServerError(errData.message); // ✅ este es el formato que devuelve tu backend
@@ -97,6 +99,11 @@ if (errData?.message) {
       setIsSubmitting(false);
     }
   };
+
+  const assignedVehicle = vehicles.find(v => v.id === formData.vehiculo_id);
+const vehiclesToShow = assignedVehicle
+  ? [...unassignedVehicles, assignedVehicle]
+  : unassignedVehicles;
 
   return (
     <form onSubmit={handleSubmit} className="needs-validation" noValidate>
@@ -191,35 +198,36 @@ if (errData?.message) {
         </div>
 
         <div className="col-md-6 mb-3">
-          <label htmlFor="licencia" className="form-label">Número de Licencia *</label>
-          <input
-            type="text"
-            className={`form-control ${errors.licencia ? 'is-invalid' : ''}`}
-            id="licencia"
-            name="licencia"
-            value={formData.licencia}
-            onChange={handleChange}
-            required
-          />
-          {errors.licencia && <div className="invalid-feedback">{errors.licencia}</div>}
-        </div>
+  <label htmlFor="licencia" className="form-label">Número de Licencia *</label>
+  <input
+    type="text"
+    className={`form-control ${errors.licencia ? 'is-invalid' : ''}`}
+    id="licencia" 
+    name="url_licencia"
+    value={formData.url_licencia}
+    onChange={handleChange}
+    required
+  />
+  {errors.licencia && <div className="invalid-feedback">{errors.licencia}</div>}
+</div>
 
         <div className="col-md-6 mb-3">
           <label htmlFor="vehiculo_id" className="form-label">Vehículo Asignado</label>
-          <select
-            className="form-select"
-            id="vehiculo_id"
-            name="vehiculo_id"
-            value={formData.vehiculo_id || ''}
-            onChange={handleChange}
-          >
-            <option value="">Sin asignar</option>
-            {vehicles.map(vehicle => (
-              <option key={vehicle.id} value={vehicle.id}>
-                {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
-              </option>
-            ))}
-          </select>
+         <select
+  className="form-select"
+  id="vehiculo_id"
+  name="vehiculo_id"
+  value={formData.vehiculo_id || ''}
+  onChange={handleChange}
+>
+  <option value="">Sin asignar</option>
+  {vehiclesToShow.map(vehicle => (
+    <option key={vehicle.id} value={vehicle.id}>
+      {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
+    </option>
+  ))}
+</select>
+
         </div>
 
         <div className="col-md-6 mb-3">

@@ -18,7 +18,7 @@ export const DriverProvider = ({ children }) => {
     }
   };
 
-  // Fetch vehicles (asumo que tenés ruta API_ROUTES.VEHICulos.ALL)
+  // Fetch vehicles
   const fetchVehicles = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
@@ -34,7 +34,7 @@ export const DriverProvider = ({ children }) => {
     fetchVehicles();
   }, []);
 
-  // Create driver
+  // Crear conductor
   const createDriver = async (driverData) => {
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.CREATE}`, {
@@ -43,37 +43,36 @@ export const DriverProvider = ({ children }) => {
         body: JSON.stringify(driverData),
       });
       if (!res.ok) throw new Error('Error al crear conductor');
-      const newDriver = await res.json();
-      setDrivers(prev => [...prev, newDriver]);
+      await fetchDrivers(); // Refrescar lista
     } catch (error) {
       console.error(error);
     }
   };
 
-  // Update driver
+  // Actualizar conductor
   const updateDriver = async (driverData) => {
     try {
+      if (!driverData.id) throw new Error('Falta ID del conductor');
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.UPDATE.replace(':id', driverData.id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(driverData),
       });
       if (!res.ok) throw new Error('Error al actualizar conductor');
-      const updatedDriver = await res.json();
-      setDrivers(prev => prev.map(d => (d.id === updatedDriver.id ? updatedDriver : d)));
+      await fetchDrivers(); // Refrescar lista
     } catch (error) {
       console.error(error);
     }
   };
 
-  // Delete driver
+  // Eliminar conductor
   const deleteDriver = async (id) => {
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.DELETE.replace(':id', id)}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Error al eliminar conductor');
-      setDrivers(prev => prev.filter(d => d.id !== id));
+      await fetchDrivers(); // Refrescar lista
     } catch (error) {
       console.error(error);
     }
@@ -86,6 +85,8 @@ export const DriverProvider = ({ children }) => {
       createDriver,
       updateDriver,
       deleteDriver,
+      fetchDrivers, // por si querés refrescar manualmente desde otro lado
+      fetchVehicles,
     }}>
       {children}
     </DriverContext.Provider>

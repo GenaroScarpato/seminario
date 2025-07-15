@@ -15,8 +15,6 @@ const DriversAdmin = () => {
   } = useContext(DriverContext);
     const { vehicles } = useContext(VehicleContext); 
 
-
-
   const [showModal, setShowModal] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [selectedEstado, setSelectedEstado] = useState('todos');
@@ -112,7 +110,7 @@ const DriversAdmin = () => {
                       onChange={e => updateDriver({ ...driver, estado: e.target.value })}
                       className="form-select form-select-sm"
                       aria-label="Estado del conductor"
-                    >
+                     >
                       <option value="disponible">Disponible</option>
                       <option value="inactivo">Inactivo</option>
                       <option value="suspendido">Suspendido</option>
