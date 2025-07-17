@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import 'leaflet.heat';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
@@ -9,21 +10,16 @@ import { OrderContext } from '../../context/OrderContext.jsx';
 import { MapContext } from '../../context/MapContext.jsx';
 import { VehicleContext } from '../../context/VehicleContext.jsx';
 import { DriverContext } from '../../context/DriverContext.jsx';
+import { ReportContext } from '../../context/ReportContext.jsx';
 
-// Base position for the map center and starting point
 const basePosition = [-34.58402190, -58.46702480];
 const baseLngLat = `${basePosition[1]},${basePosition[0]}`;
 
-// Custom icons for order statuses
+// ICONOS
 const iconPendiente = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2921/2921222.png', iconSize: [30, 30] });
 const iconEntregado = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/190/190411.png', iconSize: [30, 30] });
 const iconCancelado = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1828/1828843.png', iconSize: [30, 30] });
-
-const iconEnCamino = new L.Icon({
-  iconUrl: '/image.png', // Ruta relativa a tu archivo image.png en la carpeta public
-  iconSize: [30, 30] // Puedes ajustar el tamaño según tus necesidades
-});
-
+const iconEnCamino = new L.Icon({ iconUrl: '/image.png', iconSize: [30, 30] });
 
 const getIconByEstado = (estado) => {
   switch (estado) {
@@ -35,169 +31,216 @@ const getIconByEstado = (estado) => {
   }
 };
 
-// Custom icon for the driver's location
 const iconConductor = new L.Icon({
   iconUrl: 'https://static.thenounproject.com/png/car-top-view-icon-7680677-512.png',
   iconSize: [45, 45],
 });
 
+// Componente para manejar el heatmap
+const HeatmapLayer = ({ reportes }) => {
+  const map = useMap();
+  const heatLayerRef = useRef(null);
+
+  useEffect(() => {
+    console.log('Heatmap Effect Triggered. Map Instance:', map);
+
+    if (!map) {
+      console.log('Map instance not available yet.');
+      return;
+    }
+
+    console.log('Current reports for heatmap:', reportes);
+
+    if (!reportes || reportes.length === 0) {
+      console.log('No reports found or reports array is empty. Removing heatmap if present.');
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+      return;
+    }
+
+    const gravedadToIntensity = (g) => {
+      const valor = parseFloat(g);
+      const intensity = isNaN(valor) ? 0.3 : Math.max(0.1, Math.min(valor / 10, 1.0));
+      console.log(`Gravedad: ${g}, Converted Intensity: ${intensity}`);
+      return intensity;
+    };
+
+    const heatData = reportes.map(r => {
+      const lat = parseFloat(r.lat) || basePosition[0] + Math.random() * 0.02 - 0.01;
+      const lng = parseFloat(r.lng) || basePosition[1] + Math.random() * 0.02 - 0.01;
+      return [lat, lng, gravedadToIntensity(r.gravedad)];
+    });
+
+    console.log('Generated Heatmap Data:', heatData);
+
+    // Eliminar capa anterior si existe
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+      console.log('Removed previous heatmap layer.');
+    }
+
+    heatLayerRef.current = L.heatLayer(heatData, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 17,
+      minOpacity: 0.5,
+      gradient: {
+        0.4: 'blue',
+        0.6: 'cyan',
+        0.7: 'lime',
+        0.8: 'yellow',
+        1.0: 'red'
+      }
+    });
+
+    heatLayerRef.current.addTo(map);
+    console.log('Heatmap layer added to map.');
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+        console.log('Heatmap layer cleaned up on unmount.');
+      }
+    };
+  }, [reportes, map]);
+
+  return null; // Este componente no renderiza nada visual
+};
+
 const Mapa = () => {
-  // Accessing context values
   const { orders } = useContext(OrderContext);
   const { mapState } = useContext(MapContext);
   const { vehicles } = useContext(VehicleContext);
   const { drivers } = useContext(DriverContext);
+  const { reportes } = useContext(ReportContext);
 
-  // State for optimized routes, driver locations, and socket errors
   const [rutasOptimizadas, setRutasOptimizadas] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [socketError, setSocketError] = useState(null);
-  const socketRef = useRef(null); // Ref to hold the socket instance
+
+  const socketRef = useRef(null);
 
   const assignments = mapState.assignments;
 
-  // Filter and format valid orders with numeric lat/lng
   const validOrders = orders
     .map(p => {
       const lat = Number(p.lat), lng = Number(p.lng);
       if (isNaN(lat) || isNaN(lng)) return null;
       return { ...p, position: [lat, lng] };
     })
-    .filter(p => p);
+    .filter(Boolean);
 
-  // Effect to fetch optimized routes based on assignments
   useEffect(() => {
     const fetchRoutes = async () => {
-      if (!assignments) return; // Do nothing if no assignments
+      if (!assignments) return;
       const rutas = [];
 
-      // Iterate through each vehicle's assignments
       for (const [vehiculoId, pedidoIds] of Object.entries(assignments)) {
-        // Find orders corresponding to the assigned IDs
         const pedidos = pedidoIds.map(id => validOrders.find(p => p.id === id)).filter(Boolean);
-        // Create an array of points for the OSRM API, starting with the base position
         const puntos = [baseLngLat, ...pedidos.map(p => `${p.lng},${p.lat}`)];
-        if (puntos.length < 2) continue; // Need at least two points for a route
+        if (puntos.length < 2) continue;
 
         try {
-          // Fetch route from OSRM
           const res = await axios.get(`http://router.project-osrm.org/route/v1/driving/${puntos.join(';')}?overview=full&geometries=geojson`);
           const route = res.data.routes[0];
-          // Convert GeoJSON coordinates to Leaflet [lat, lng] format
           const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
-          // Add the optimized route data to the array
-          rutas.push({ 
-            vehiculoId, 
-            ruta: coords, 
+          rutas.push({
+            vehiculoId,
+            ruta: coords,
             duracion: route.duration,
-            distancia: route.distance   
+            distancia: route.distance
           });
         } catch (err) {
           console.error(`Error fetching route for vehicle ${vehiculoId}:`, err);
         }
       }
 
-      setRutasOptimizadas(rutas); // Update state with optimized routes
+      setRutasOptimizadas(rutas);
     };
 
     fetchRoutes();
-  }, [assignments, orders]); // Re-run when assignments or orders change
+  }, [assignments, orders]);
 
-  // Effect to manage WebSocket connection for real-time driver locations
   useEffect(() => {
-    // Determine the socket URL from environment variables or default to localhost
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
-    console.log('Attempting to connect to socket at:', socketUrl);
 
-    // Initialize socket connection
     socketRef.current = io(socketUrl, {
-      transports: ['websocket', 'polling'], // Preferred transports
-      reconnection: true, // Enable auto-reconnection
-      reconnectionAttempts: 5, // Number of reconnection attempts
-      reconnectionDelay: 1000, // Delay between reconnection attempts
-      timeout: 20000, // Connection timeout
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
     });
 
     const socket = socketRef.current;
 
-    // Socket event listener for 'connect'
     socket.on('connect', () => {
       console.log('Socket connected with ID:', socket.id);
-      setSocketError(null); // Clear any previous socket errors
+      setSocketError(null);
     });
 
-    // Socket event listener for 'connect_error'
     socket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
-      setSocketError(`Connection error: ${err.message}`); // Set socket error message
+      setSocketError(`Connection error: ${err.message}`);
     });
 
-    // Socket event listener for 'ubicacion_conductor' (driver location updates)
     socket.on('ubicacion_conductor', (data) => {
-      console.log('Received driver location:', data);
-      // Validate received data
-      if (!data || isNaN(data.lat) || isNaN(data.lng)) {
-        console.error('Invalid location data received:', data);
-        return;
-      }
+      if (!data || isNaN(data.lat) || isNaN(data.lng)) return;
 
-      // Update ubicaciones state: remove old entry for the same driver and add the new one
       setUbicaciones(prev => {
-        const otrasUbicaciones = prev.filter(u => u.dni !== data.dni);
-        return [...otrasUbicaciones, {
+        const otras = prev.filter(u => u.dni !== data.dni);
+        return [...otras, {
           dni: data.dni,
           lat: parseFloat(data.lat),
           lng: parseFloat(data.lng),
-          timestamp: data.timestamp || new Date().toISOString() // Use provided timestamp or current time
+          timestamp: data.timestamp || new Date().toISOString()
         }];
       });
     });
 
-    // Socket event listener for 'disconnect'
     socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
     });
 
-    // Cleanup function for the effect: disconnect the socket when component unmounts
     return () => {
-      console.log('Cleaning up socket connection');
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
+  }, []);
 
   return (
     <div style={{ width: '100%' }}>
-      {/* Display socket error message if any */}
       {socketError && (
         <div className="alert alert-warning">
           {socketError} - Real-time locations are not available.
         </div>
       )}
 
-      {/* Map container */}
       <div style={{ height: '500px', width: '100%' }}>
-        <MapContainer 
-          center={basePosition} 
-          zoom={13} 
-          scrollWheelZoom 
+        <MapContainer
+          center={basePosition}
+          zoom={13}
+          scrollWheelZoom
           style={{ height: '100%', width: '100%' }}
         >
-          {/* OpenStreetMap Tile Layer */}
-          <TileLayer 
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
-            attribution='© OpenStreetMap contributors' 
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='© OpenStreetMap contributors'
           />
 
-          {/* Marker for the base position */}
+          {/* Componente para manejar el heatmap */}
+          <HeatmapLayer reportes={reportes} />
+
           <Marker position={basePosition}>
             <Popup>🚩 Starting Point: Base Triunvirato y Tronador</Popup>
           </Marker>
 
-          {/* Markers for valid orders */}
           {validOrders.map(p => (
             <Marker key={p.id} position={p.position} icon={getIconByEstado(p.estado)}>
               <Popup>
@@ -208,10 +251,9 @@ const Mapa = () => {
             </Marker>
           ))}
 
-          {/* Markers for real-time driver locations */}
-          {ubicaciones.map((ubicacion) => (
+          {ubicaciones.map(ubicacion => (
             <Marker
-              key={`${ubicacion.dni}-${ubicacion.timestamp}`} // Unique key for each location update
+              key={`${ubicacion.dni}-${ubicacion.timestamp}`}
               position={[ubicacion.lat, ubicacion.lng]}
               icon={iconConductor}
             >
@@ -222,24 +264,22 @@ const Mapa = () => {
             </Marker>
           ))}
 
-          {/* Polylines for optimized routes */}
           {rutasOptimizadas.map(({ vehiculoId, ruta }, idx) => {
             const colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'black'];
             return (
-              <Polyline 
-                key={vehiculoId} 
-                positions={ruta} 
-                pathOptions={{ 
-                  color: colors[idx % colors.length], // Cycle through colors for different routes
-                  weight: 5 
-                }} 
+              <Polyline
+                key={vehiculoId}
+                positions={ruta}
+                pathOptions={{
+                  color: colors[idx % colors.length],
+                  weight: 5
+                }}
               />
             );
           })}
         </MapContainer>
       </div>
 
-      {/* Summary of assignments */}
       <div className="mt-4 px-3">
         <h3>Assignment Summary</h3>
         {assignments ? Object.entries(assignments).map(([vehiculoId, pedidoIds]) => {

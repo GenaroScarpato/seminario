@@ -82,10 +82,10 @@ class Server {
         this.app.use("/api/vehiculos", require('./routes/vehiculos'));
         this.app.use("/api/pedidos", require('./routes/pedidos'));
         this.app.use("/api/rutas", require('./routes/rutas'));
-        this.app.use("/api/feedback", require('./routes/feedback'));
         this.app.use("/api/conductores", require('./routes/conductores'));
         this.app.use("/api/auth", require('./routes/auth'));
         this.app.use("/api", require('./routes/asignacion'));
+        this.app.use("/api/reportes", require('./routes/reportes'));
 
         console.log('🛣️ Rutas cargadas');
     }

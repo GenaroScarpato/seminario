@@ -4,8 +4,9 @@ import { OrderContext } from '../context/OrderContext';
 import { VehicleContext } from '../context/VehicleContext';
 import { MapContext } from '../context/MapContext';
 import { WebSocketContext } from '../context/WebSocketContext';
-import { DriverProvider } from '../context/DriverContext'; // 🔥 Este es el bueno
+import { DriverProvider } from '../context/DriverContext';
 import { initialMapState, initialWebSocketState } from '../context/initialState';
+import { ReportProvider } from '../context/ReportContext'; // <<<<<<<<<< IMPORT ReportProvider HERE
 import { API_BASE_URL, API_ROUTES } from '../config/api';
 
 const AdminLayout = () => {
@@ -15,6 +16,8 @@ const AdminLayout = () => {
   const [vehicles, setVehicles] = useState([]);
   const [mapState, setMapState] = useState(initialMapState);
   const [webSocketState, setWebSocketState] = useState(initialWebSocketState);
+  // Remove the local reportes state as ReportProvider will manage it
+  // const [reportes, setReportes] = useState([]);
 
   useEffect(() => {
     fetchPedidos();
@@ -53,49 +56,52 @@ const AdminLayout = () => {
   ];
 
   return (
-    <OrderContext.Provider value={{ orders, setOrders }}>
-      <VehicleContext.Provider value={{ vehicles, setVehicles }}>
-        <DriverProvider> {/* ✅ Este es el Provider con lógica incluida */}
-          <MapContext.Provider value={{ mapState, setMapState }}>
-            <WebSocketContext.Provider value={{ webSocketState, setWebSocketState }}>
-              <div className="d-flex bg-light" style={{ minHeight: '100vh' }}>
-                <aside className="bg-white border-end" style={{ width: '250px' }}>
-                  <div className="d-flex align-items-center justify-content-center py-3 border-bottom">
-                    <span className="fs-4 text-primary me-2">📦</span>
-                    <h2 className="mb-0 text-primary">Panel Admin</h2>
-                  </div>
-
-                  <nav className="mt-3">
-                    <div className="nav flex-column">
-                      {menuItems.map((item, index) => (
-                        <Link
-                          key={index}
-                          to={item.path}
-                          className={`nav-link d-flex align-items-center px-3 py-2 ${
-                            location.pathname === item.path ? 'bg-primary text-white' : 'text-dark'
-                          }`}
-                        >
-                          <span className="me-2">{item.icon}</span>
-                          <span>{item.label}</span>
-                        </Link>
-                      ))}
+    // <<<<<<<<<< USE ReportProvider HERE instead of ReportContext.Provider
+    <ReportProvider>
+      <OrderContext.Provider value={{ orders, setOrders }}>
+        <VehicleContext.Provider value={{ vehicles, setVehicles }}>
+          <DriverProvider>
+            <MapContext.Provider value={{ mapState, setMapState }}>
+              <WebSocketContext.Provider value={{ webSocketState, setWebSocketState }}>
+                <div className="d-flex bg-light" style={{ minHeight: '100vh' }}>
+                  <aside className="bg-white border-end" style={{ width: '250px' }}>
+                    <div className="d-flex align-items-center justify-content-center py-3 border-bottom">
+                      <span className="fs-4 text-primary me-2">📦</span>
+                      <h2 className="mb-0 text-primary">Panel Admin</h2>
                     </div>
-                  </nav>
-                </aside>
 
-                <main className="flex-grow-1 p-4">
-                  <div className="card">
-                    <div className="card-body">
-                      <Outlet />
+                    <nav className="mt-3">
+                      <div className="nav flex-column">
+                        {menuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            to={item.path}
+                            className={`nav-link d-flex align-items-center px-3 py-2 ${
+                              location.pathname === item.path ? 'bg-primary text-white' : 'text-dark'
+                            }`}
+                          >
+                            <span className="me-2">{item.icon}</span>
+                            <span>{item.label}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </nav>
+                  </aside>
+
+                  <main className="flex-grow-1 p-4">
+                    <div className="card">
+                      <div className="card-body">
+                        <Outlet />
+                      </div>
                     </div>
-                  </div>
-                </main>
-              </div>
-            </WebSocketContext.Provider>
-          </MapContext.Provider>
-        </DriverProvider>
-      </VehicleContext.Provider>
-    </OrderContext.Provider>
+                  </main>
+                </div>
+              </WebSocketContext.Provider>
+            </MapContext.Provider>
+          </DriverProvider>
+        </VehicleContext.Provider>
+      </OrderContext.Provider>
+    </ReportProvider>
   );
 };
 

@@ -15,30 +15,33 @@ const VehicleTable = ({ vehicles, onDelete, showActions = true }) => {
           </tr>
         </thead>
         <tbody>
-          {Array.isArray(vehicles) ? vehicles.map((vehicle) => (
-            <tr key={vehicle.id}>
-              <td>{vehicle.patente}</td>
-              <td>{vehicle.marca}</td>
-              <td>{vehicle.modelo}</td>
-              <td>{vehicle.anio}</td>
-              <td>{vehicle.tipo}</td>
-              {showActions && (
-                <td>
-                  <button 
-                    className="btn btn-danger btn-sm" 
-                    onClick={() => onDelete(vehicle.id)}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              )}
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={showActions ? 6 : 5}>No hay vehículos disponibles</td>
-            </tr>
-          )}
-        </tbody>
+  {Array.isArray(vehicles) && vehicles.length > 0 ? (
+    vehicles.map((vehicle) => (
+      <tr key={vehicle.id}>
+        <td>{vehicle.patente}</td>
+        <td>{vehicle.marca}</td>
+        <td>{vehicle.modelo}</td>
+        <td>{vehicle.anio}</td>
+        <td>{vehicle.tipo}</td>
+        {showActions && (
+          <td>
+            <button 
+              className="btn btn-danger btn-sm" 
+              onClick={() => onDelete(vehicle.id)}
+            >
+              Eliminar
+            </button>
+          </td>
+        )}
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={showActions ? 6 : 5}>No hay vehículos disponibles</td>
+    </tr>
+  )}
+</tbody>
+
       </table>
     </div>
   );

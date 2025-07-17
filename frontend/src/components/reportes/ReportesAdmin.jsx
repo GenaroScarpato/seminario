@@ -1,62 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useContext } from 'react';
 import { Alert, Button, Spinner } from 'react-bootstrap';
+import { ReportContext } from '../../context/ReportContext.jsx'; // Adjust path as necessary
 
 const ReportesAdmin = () => {
-  const [reportes, setReportes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Use useContext to get reportes, loading, error, and functions from ReportContext
+  const { reportes, loading, error, fetchReportes, deleteReporte } = useContext(ReportContext);
 
-  // Mock de datos simulados
-  const mockReportes = [
-    {
-      id: 1,
-      nombre_conductor: 'Juan Pérez',
-      tipo: 'Demora',
-      mensaje: 'Tráfico intenso en Av. Siempre Viva',
-      fecha: '2025-07-15T10:30:00Z',
-    },
-    {
-      id: 2,
-      nombre_conductor: 'Ana Gómez',
-      tipo: 'Obstáculo',
-      mensaje: 'Calles cerradas por obras',
-      fecha: '2025-07-14T16:45:00Z',
-    },
-    {
-        id: 3,
-      nombre_conductor: 'María Rodríguez',
-        tipo: 'Demora',
-      mensaje: 'Tráfico intenso en Av. Siempre Viva',
-      fecha: '2025-07-15T10:30:00Z',
-    },
-    {
-      id: 4,
-      nombre_conductor: 'Juan Pérez',
-      tipo: 'Demora',
-      mensaje: 'Tráfico intenso en Av. Siempre Viva',
-      fecha: '2025-07-15T10:30:00Z',
-    },
-    
-  ];
-
-  const fetchReportesMock = () => {
-    setTimeout(() => {
-      setReportes(mockReportes);
-      setLoading(false);
-    }, 1000); // Simula retardo de red
-  };
-
-  const eliminarReporte = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar este reporte?');
-    if (!confirmar) return;
-    setReportes((prev) => prev.filter((r) => r.id !== id));
-  };
-
+  // Fetch reports when the component mounts, leveraging the context's fetcher
   useEffect(() => {
-    fetchReportesMock();
-  }, []);
+    fetchReportes();
+  }, [fetchReportes]);
 
   if (loading) return <Spinner animation="border" />;
-  if (reportes.length === 0) return <Alert variant="info">No hay reportes registrados.</Alert>;
+  if (error) return <Alert variant="danger">Error al cargar reportes.</Alert>;
+  if (!Array.isArray(reportes) || reportes.length === 0)
+    return <Alert variant="info">No hay reportes registrados.</Alert>;
 
   return (
     <div className="p-4">
@@ -67,6 +25,7 @@ const ReportesAdmin = () => {
             <th>Conductor</th>
             <th>Tipo</th>
             <th>Mensaje</th>
+            <th>Gravedad</th>
             <th>Fecha</th>
             <th>Acciones</th>
           </tr>
@@ -77,9 +36,10 @@ const ReportesAdmin = () => {
               <td>{r.nombre_conductor}</td>
               <td>{r.tipo}</td>
               <td>{r.mensaje}</td>
-              <td>{new Date(r.fecha).toLocaleString()}</td>
+              <td>{r.gravedad}</td>
+              <td>{new Date(r.creado_en).toLocaleString()}</td>
               <td>
-                <Button variant="danger" size="sm" onClick={() => eliminarReporte(r.id)}>
+                <Button variant="danger" size="sm" onClick={() => deleteReporte(r.id)}>
                   Eliminar
                 </Button>
               </td>

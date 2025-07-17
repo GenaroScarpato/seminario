@@ -7,7 +7,6 @@ import VehiclesAdmin from '@/components/vehicles/VehiclesAdmin';
 import DriversAdmin from '@/components/drivers/DriversAdmin';
 import Dashboard from './components/Dashboard';
 import Mapa from '@/components/mapas/mapa';
-import { DriverProvider } from '@/context/DriverContext';
 import ReportesAdmin from '@/components/reportes/ReportesAdmin';
 
 

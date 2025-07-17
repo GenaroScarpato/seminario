@@ -21,5 +21,9 @@ export const API_ROUTES = {
   },
   ASIGNACIONES: {
     ASIGNAR_PEDIDOS: '/api/asignar-rutas',
-  }
+  },
+  REPORTES: {
+    ALL: '/api/reportes',
+    CREATE: '/api/reportes',
+    DELETE: '/api/reportes/:id'}
 };
