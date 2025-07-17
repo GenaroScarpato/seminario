@@ -5,14 +5,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 
 const Profile = () => {
-  const dispatch = useDispatch();
-  const navigation = useNavigation();
+  
 
   const user = useSelector((state) => state.auth.user);
 
   return (
     <View style={styles.container}>
-      {console.log(user)}
       <Text style={styles.title}>Mi Perfil</Text>
       <Text style={styles.subtitle}>Nombre: {user?.nombre}</Text>
       <Text style={styles.subtitle}>DNI: {user?.dni}</Text>

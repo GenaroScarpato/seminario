@@ -49,7 +49,6 @@ const HeatmapLayer = ({ reportes }) => {
       return;
     }
 
-    console.log('Current reports for heatmap:', reportes);
 
     if (!reportes || reportes.length === 0) {
       console.log('No reports found or reports array is empty. Removing heatmap if present.');
@@ -60,12 +59,12 @@ const HeatmapLayer = ({ reportes }) => {
       return;
     }
 
-    const gravedadToIntensity = (g) => {
-      const valor = parseFloat(g);
-      const intensity = isNaN(valor) ? 0.3 : Math.max(0.1, Math.min(valor / 10, 1.0));
-      console.log(`Gravedad: ${g}, Converted Intensity: ${intensity}`);
-      return intensity;
-    };
+ const gravedadToIntensity = (g) => {
+  const valor = parseFloat(g);
+  const intensity = isNaN(valor) ? 0.3 : Math.max(0.1, Math.min(valor / 5, 1.0));
+  return intensity;
+};
+
 
     const heatData = reportes.map(r => {
       const lat = parseFloat(r.lat) || basePosition[0] + Math.random() * 0.02 - 0.01;
@@ -73,7 +72,6 @@ const HeatmapLayer = ({ reportes }) => {
       return [lat, lng, gravedadToIntensity(r.gravedad)];
     });
 
-    console.log('Generated Heatmap Data:', heatData);
 
     // Eliminar capa anterior si existe
     if (heatLayerRef.current) {

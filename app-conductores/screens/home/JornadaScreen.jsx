@@ -1,25 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, BackHandler ,  Platform} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import * as Location from 'expo-location';
 import { io } from 'socket.io-client';
 import api from '../../services/api';
 import { Linking } from 'react-native';
-
+import { fetchPedidos } from '../../slices/ordersSlice';
 
 const JornadaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const pedidos = route.params?.pedidos || [];
-
   const [pedidoIndex, setPedidoIndex] = useState(0);
   const [socket, setSocket] = useState(null);
   const [activo, setActivo] = useState(false);
   const locationSubscription = useRef(null); // Ref para almacenar la suscripción de ubicación
-
+  const dispatch = useDispatch();
   // Bloquear salida si no terminó la jornada
   useEffect(() => {
     const backAction = () => {
+     
       Alert.alert(
         "Atención",
         "Debes terminar la jornada para salir.",
@@ -77,9 +78,12 @@ return () => {
     return () => {
       // Limpiar suscripción de ubicación
       if (locationSubscription.current) {
-        locationSubscription.current.remove();
-        locationSubscription.current = null;
-      }
+  if (Platform.OS !== 'web') {
+    locationSubscription.current.remove();
+  }
+  locationSubscription.current = null;
+}
+
       // Desconectar socket
       if (socket) {
         socket.disconnect();
@@ -95,8 +99,8 @@ return () => {
   const marcarEnCamino = async () => {
     try {
       await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'en_camino' });
-      // Opcional: Actualizar el estado local del pedido si es necesario
-      // setPedidos(prevPedidos => prevPedidos.map(p => p.id === pedidoActual.id ? { ...p, estado: 'en camino' } : p));
+     dispatch(fetchPedidos());
+
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el estado del pedido a "en camino".');
       console.error('Error al marcar en camino:', error); // Para depuración
@@ -107,6 +111,7 @@ return () => {
 const marcarComoEntregado = async () => {
   try {
     await api.put(`/pedidos/${pedidoActual.id}/estado`, { estado: 'entregado' });
+         dispatch(fetchPedidos());
 
     // Detectar si es web y evitar Alert.alert
     if (Platform.OS === 'web') {
@@ -152,8 +157,11 @@ const marcarComoEntregado = async () => {
   const quedanPendientes = pedidos.some(p => p.estado !== 'entregado');
 
   if (quedanPendientes) {
+    if(Platform.OS === 'web') {
+      alert('Aún tienes pedidos sin entregar. Completa todos antes de terminar la jornada.');
+    }else{
     Alert.alert('Atención', 'Aún tienes pedidos sin entregar. Completa todos antes de terminar la jornada.');
-    return;
+     } return;
   }
 
   if (Platform.OS === 'web') {

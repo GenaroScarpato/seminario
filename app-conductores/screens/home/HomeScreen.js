@@ -8,6 +8,7 @@ import { clearSession } from '../../slices/authSlice';
 import { Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { io } from 'socket.io-client';
+import { fetchPedidos } from '../../slices/ordersSlice';
 
 const abrirWaze = (direccion) => {
   const direccionEncoded = encodeURIComponent(direccion);
@@ -19,37 +20,22 @@ const HomeScreen = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const user = useSelector((state) => state.auth.user);
-  const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activo, setActivo] = useState(false);
   const [socket, setSocket] = useState(null);
+const { pedidos, loading, error } = useSelector((state) => state.orders);
 
-  useEffect(() => {
-    const checkTokenAndFetch = async () => {
-      setLoading(true);
-      try {
-        if (!user?.token || (user?.exp && user.exp < Date.now() / 1000)) {
-          await dispatch(clearSession());
-          return;
-        }
-        const res = await api.get('/rutasAsignadas');
-        setPedidos(res.data || []);
-        setError(null);
-      } catch (err) {
-        if (err.response?.status === 401) {
-          await dispatch(clearSession());
-        } else {
-          setError(err.message || 'Error al cargar pedidos');
-          setPedidos([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+ useEffect(() => {
+  const checkTokenAndFetch = async () => {
+    if (!user?.token || (user?.exp && user.exp < Date.now() / 1000)) {
+      await dispatch(clearSession());
+      return;
+    }
 
-    checkTokenAndFetch();
-  }, [user?.token, user?.exp, dispatch]);
+    dispatch(fetchPedidos());
+  };
+
+  checkTokenAndFetch();
+}, [user?.token, user?.exp, dispatch]);
 
   const iniciarJornada = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -63,7 +49,6 @@ const HomeScreen = () => {
 
     const intervalId = setInterval(async () => {
       const location = await Location.getCurrentPositionAsync({});
-      console.log('📍 Ubicación recibida:', location);
       const { latitude, longitude } = location.coords;
 
       s.emit('ubicacion', {
@@ -84,7 +69,7 @@ const HomeScreen = () => {
     switch (estado) {
       case 'pendiente':
         return { color: '#FFC107' }; // Amarillo
-      case 'en_transito':
+      case 'en_camino':
         return { color: '#2196F3' }; // Azul
       case 'entregado':
         return { color: '#4CAF50' }; // Verde
@@ -115,7 +100,7 @@ const HomeScreen = () => {
     );
   }
 const entregados = pedidos.filter(p => p.estado === 'entregado');
-const pendientes = pedidos.filter(p => p.estado !== 'entregado');
+const pendientes = pedidos.filter(p => p.estado !== 'entregado' && p.estado !== 'cancelado');
 
   return (
     <View style={styles.container}>
