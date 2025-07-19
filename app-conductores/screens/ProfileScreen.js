@@ -2,7 +2,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
 
 const Profile = () => {
   

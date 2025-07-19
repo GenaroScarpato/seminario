@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
 
 const DriverForm = ({ onSubmit, driver, vehicles = [], onError }) => {
+  const isEditMode = !!driver?.id;
+
   const [formData, setFormData] = useState({
     nombre: driver?.nombre || '',
     apellido: driver?.apellido || '',
     dni: driver?.dni || '',
-    password: driver?.password || driver?.dni || '', // Usar DNI como contraseña por defecto
+    password: '', // Siempre vacío por seguridad
     telefono: driver?.telefono || '',
     email: driver?.email || '',
-   url_licencia: driver?.url_licencia || '',
+    url_licencia: driver?.url_licencia || '',
     estado: driver?.estado || 'disponible',
     vehiculo_id: driver?.vehiculo_id || ''
   });
-
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
 
-const unassignedVehicles = vehicles.filter(v => v.conductor_id === null || v.conductor_id === undefined);
-useEffect(() => {
+  const unassignedVehicles = vehicles.filter(v => v.conductor_id === null || v.conductor_id === undefined);
+
+  useEffect(() => {
     if (driver?.vehiculo_id && vehicles.length > 0) {
       setFormData(prev => ({
         ...prev,
@@ -28,33 +30,43 @@ useEffect(() => {
     }
   }, [driver, vehicles]);
 
- const handleChange = (e) => {
-  const { name, value } = e.target;
-  setFormData(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido';
+
     if (!formData.dni.trim()) {
       newErrors.dni = 'El DNI es requerido';
     } else if (!/^\d{7,8}$/.test(formData.dni.trim())) {
       newErrors.dni = 'El DNI debe tener 7 u 8 dígitos';
     }
+
     if (!formData.email) {
       newErrors.email = 'El email es requerido';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
     }
+
     if (!formData.url_licencia.trim()) newErrors.licencia = 'La licencia es requerida';
-if (!formData.password.trim()) {
-  newErrors.password = 'La contraseña es requerida';
-} else if (formData.password.length < 6) {
-  newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
-}
+
+    if (!isEditMode) {
+      if (!formData.password.trim()) {
+        newErrors.password = 'La contraseña es requerida';
+      } else if (formData.password.length < 6) {
+        newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+      }
+    } else {
+      if (formData.password && formData.password.length < 6) {
+        newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -62,7 +74,6 @@ if (!formData.password.trim()) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setServerError('');
 
     if (!validateForm()) return;
@@ -73,26 +84,30 @@ if (!formData.password.trim()) {
     try {
       const dataToSend = {
         ...formData,
-            id: driver?.id,  
-        vehiculo_id: formData.vehiculo_id || null
+        id: driver?.id,
+        vehiculo_id: formData.vehiculo_id || null,
       };
+
+      // Si no hay contraseña, no se manda al backend
+      if (!formData.password.trim()) {
+        delete dataToSend.password;
+      }
 
       await onSubmit(dataToSend);
     } catch (error) {
-     const errData = error?.response?.data;
+      const errData = error?.response?.data;
 
-if (errData?.message) {
-  setServerError(errData.message); // ✅ este es el formato que devuelve tu backend
-} else if (errData?.error) {
-  setServerError(errData.error);
-} else if (typeof errData === 'string') {
-  setServerError(errData);
-} else if (typeof errData === 'object') {
-  setErrors(errData);
-} else {
-  setServerError('Ocurrió un error inesperado.');
-}
-
+      if (errData?.message) {
+        setServerError(errData.message);
+      } else if (errData?.error) {
+        setServerError(errData.error);
+      } else if (typeof errData === 'string') {
+        setServerError(errData);
+      } else if (typeof errData === 'object') {
+        setErrors(errData);
+      } else {
+        setServerError('Ocurrió un error inesperado.');
+      }
 
       onError?.(errData);
     } finally {
@@ -101,9 +116,9 @@ if (errData?.message) {
   };
 
   const assignedVehicle = vehicles.find(v => v.id === formData.vehiculo_id);
-const vehiclesToShow = assignedVehicle
-  ? [...unassignedVehicles, assignedVehicle]
-  : unassignedVehicles;
+  const vehiclesToShow = assignedVehicle
+    ? [...unassignedVehicles, assignedVehicle]
+    : unassignedVehicles;
 
   return (
     <form onSubmit={handleSubmit} className="needs-validation" noValidate>
@@ -155,8 +170,6 @@ const vehiclesToShow = assignedVehicle
           {errors.dni && <div className="invalid-feedback">{errors.dni}</div>}
         </div>
 
-
-        
         <div className="col-md-6 mb-3">
           <label htmlFor="telefono" className="form-label">Teléfono</label>
           <input
@@ -169,19 +182,20 @@ const vehiclesToShow = assignedVehicle
             placeholder="Ej: +54 9 11 1234-5678"
           />
         </div>
+
         <div className="col-md-6 mb-3">
-  <label htmlFor="password" className="form-label">Contraseña *</label>
-  <input
-    type="password"
-    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-    id="password"
-    name="password"
-    value={formData.password}
-    onChange={handleChange}
-    required
-  />
-  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
-</div>
+          <label htmlFor="password" className="form-label">Contraseña {isEditMode ? '(opcional)' : '*'}</label>
+          <input
+            type="password"
+            className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required={!isEditMode}
+          />
+          {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+        </div>
 
         <div className="col-md-6 mb-3">
           <label htmlFor="email" className="form-label">Email *</label>
@@ -198,36 +212,35 @@ const vehiclesToShow = assignedVehicle
         </div>
 
         <div className="col-md-6 mb-3">
-  <label htmlFor="licencia" className="form-label">Número de Licencia *</label>
-  <input
-    type="text"
-    className={`form-control ${errors.licencia ? 'is-invalid' : ''}`}
-    id="licencia" 
-    name="url_licencia"
-    value={formData.url_licencia}
-    onChange={handleChange}
-    required
-  />
-  {errors.licencia && <div className="invalid-feedback">{errors.licencia}</div>}
-</div>
+          <label htmlFor="licencia" className="form-label">Número de Licencia *</label>
+          <input
+            type="text"
+            className={`form-control ${errors.licencia ? 'is-invalid' : ''}`}
+            id="licencia"
+            name="url_licencia"
+            value={formData.url_licencia}
+            onChange={handleChange}
+            required
+          />
+          {errors.licencia && <div className="invalid-feedback">{errors.licencia}</div>}
+        </div>
 
         <div className="col-md-6 mb-3">
           <label htmlFor="vehiculo_id" className="form-label">Vehículo Asignado</label>
-         <select
-  className="form-select"
-  id="vehiculo_id"
-  name="vehiculo_id"
-  value={formData.vehiculo_id || ''}
-  onChange={handleChange}
->
-  <option value="">Sin asignar</option>
-  {vehiclesToShow.map(vehicle => (
-    <option key={vehicle.id} value={vehicle.id}>
-      {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
-    </option>
-  ))}
-</select>
-
+          <select
+            className="form-select"
+            id="vehiculo_id"
+            name="vehiculo_id"
+            value={formData.vehiculo_id || ''}
+            onChange={handleChange}
+          >
+            <option value="">Sin asignar</option>
+            {vehiclesToShow.map(vehicle => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.patente} - {vehicle.marca} {vehicle.modelo}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="col-md-6 mb-3">
@@ -246,22 +259,19 @@ const vehiclesToShow = assignedVehicle
           </select>
         </div>
 
-        <div className="col-12 mt-4">
-          <div className="col-12 mt-4 d-flex justify-content-end">
-  <button
-    type="submit"
-    className="btn btn-primary"
-    disabled={isSubmitting}
-  >
-    {isSubmitting ? (
-      <>
-        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-        Guardando...
-      </>
-    ) : 'Guardar'}
-  </button>
-</div>
-
+        <div className="col-12 mt-4 d-flex justify-content-end">
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Guardando...
+              </>
+            ) : 'Guardar'}
+          </button>
         </div>
       </div>
     </form>

@@ -79,99 +79,79 @@ const getConductorById = async (pool, id) => {
   return rows[0];
 };
 
+
 const updateConductor = async (pool, id, data) => {
   const validKeys = ['nombre', 'apellido', 'dni', 'telefono', 'email', 'direccion', 'estado', 'vehiculo_id', 'url_licencia', 'password'];
-const keys = Object.keys(data).filter(key => validKeys.includes(key));
-
+  const keys = Object.keys(data).filter(key => validKeys.includes(key));
+ console.log('keys', keys);
   if (keys.length === 0) {
     throw new Error('No se enviaron campos para actualizar');
   }
 
-  // --- Start of new logic for vehicle assignment ---
-
-  // 1. Get the current conductor data to know their existing vehiculo_id
   const currentConductor = await getConductorById(pool, id);
   const oldVehiculoId = currentConductor ? currentConductor.vehiculo_id : null;
-  const newVehiculoId = data.vehiculo_id !== undefined ? (data.vehiculo_id === '' ? null : data.vehiculo_id) : undefined; // Handle empty string as null
+  const newVehiculoId = data.vehiculo_id !== undefined ? (data.vehiculo_id === '' ? null : data.vehiculo_id) : undefined;
 
-  // Use a transaction for atomicity
   const client = await pool.connect();
   try {
-    await client.query('BEGIN'); // Start transaction
+    await client.query('BEGIN');
 
-    // 2. Unassign the old vehicle if it's different from the new one (and not null)
-    // and if vehiculo_id is actually part of the update data
+    // vehículo
     if (newVehiculoId !== undefined && oldVehiculoId && oldVehiculoId !== newVehiculoId) {
-      const unassignQuery = `
-        UPDATE vehiculos
-        SET conductor_id = NULL
-        WHERE id = $1;
-      `;
-      await client.query(unassignQuery, [oldVehiculoId]);
+      await client.query(`UPDATE vehiculos SET conductor_id = NULL WHERE id = $1;`, [oldVehiculoId]);
     }
-
-    // 3. Assign the new vehicle if a newVehiculoId is provided and it's different from the old one
-    // and if vehiculo_id is actually part of the update data
     if (newVehiculoId !== undefined && newVehiculoId && newVehiculoId !== oldVehiculoId) {
-      const assignQuery = `
-        UPDATE vehiculos
-        SET conductor_id = $1
-        WHERE id = $2;
-      `;
-      await client.query(assignQuery, [id, newVehiculoId]);
+      await client.query(`UPDATE vehiculos SET conductor_id = $1 WHERE id = $2;`, [id, newVehiculoId]);
     }
 
-    // --- End of new logic for vehicle assignment ---
-
-    // Preprocesar password si viene
+    // ⚠️ Evitar re-encriptado innecesario
     const updatedData = await Promise.all(
       keys.map(async (key) => {
         if (key === 'password') {
-          const hashed = await bcrypt.hash(data[key], 10);
+          const incomingPassword = data[key];
+          const currentPassword = currentConductor.password;
+
+          // Si ya está hasheada, NO reencriptar
+          const isHashed = /^\$2[aby]\$/.test(incomingPassword); // bcrypt hash regex
+
+          if (isHashed && incomingPassword === currentPassword) {
+            return null; // no actualizar
+          }
+
+          const hashed = await bcrypt.hash(incomingPassword, 10);
           return [key, hashed];
         }
-        // Ensure vehiculo_id is correctly set to null if received as empty string from frontend
+
         if (key === 'vehiculo_id' && data[key] === '') {
           return [key, null];
         }
+
         return [key, data[key]];
       })
     );
-    
-    // Filter out vehiculo_id from updatedData if it was explicitly set to undefined (meaning it wasn't in the original `data` object for update)
-    const filteredUpdatedData = updatedData.filter(([key, value]) => {
-      // If newVehiculoId was undefined (meaning vehiculo_id wasn't in original `data`),
-      // we don't want to include it in the SET clause of the conductor update.
-      // We only handled its side effect on the `vehiculos` table.
-      if (key === 'vehiculo_id' && newVehiculoId === undefined) {
-          return false;
-      }
-      return true;
-    });
 
-    const campos = filteredUpdatedData.map(([key], index) => `${key} = $${index + 1}`);
-    const valores = filteredUpdatedData.map(([, value]) => value);
+    const fieldsToUpdate = updatedData.filter(Boolean); // saca los null
+    if (fieldsToUpdate.length === 0) {
+      await client.query('COMMIT');
+      return currentConductor;
+    }
 
-    const query = `
-      UPDATE conductores
-      SET ${campos.join(', ')}
-      WHERE id = $${valores.length + 1}
-      RETURNING *;
-    `;
-    valores.push(id); // el id es el último parámetro
-    const { rows } = await client.query(query, valores); // Use client for query
+    const setClauses = fieldsToUpdate.map(([key], i) => `${key} = $${i + 1}`);
+    const values = fieldsToUpdate.map(([_, value]) => value);
 
-    await client.query('COMMIT'); // Commit transaction
-    return rows[0];
+    const updateQuery = `UPDATE conductores SET ${setClauses.join(', ')} WHERE id = $${values.length + 1} RETURNING *;`;
+    const result = await client.query(updateQuery, [...values, id]);
 
+    await client.query('COMMIT');
+    return result.rows[0];
   } catch (error) {
-    await client.query('ROLLBACK'); // Rollback on error
-    console.error("Error en updateConductor (transacción):", error); // Log the transaction error
+    await client.query('ROLLBACK');
     throw error;
   } finally {
-    client.release(); // Release the client back to the pool
+    client.release();
   }
 };
+
 
 const deleteConductor = async (pool, id) => {
   const client = await pool.connect();
