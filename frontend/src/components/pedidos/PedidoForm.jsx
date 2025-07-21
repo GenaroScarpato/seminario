@@ -190,9 +190,23 @@ useEffect(() => {
             min="0"
           />
         </div>
+  <div className="mb-3 col-md-6">
+  <label htmlFor="estado" className="form-label fw-bold">Estado</label>
+  <select
+    className="form-select"
+    id="estado"
+    name="estado"
+    value={formData.estado}
+    onChange={handleChange}
+  >
+    <option value="pendiente">Pendiente</option>
+    <option value="en camino">En camino</option>
+    <option value="entregado">Entregado</option>
+    <option value="cancelado">Cancelado</option>
+  </select>
+</div>
 
-        {/* Estado y Fecha */}
-      
+ 
 
         <div className="mb-3 col-md-6">
           <label htmlFor="scheduled_at" className="form-label fw-bold">Programado para</label>

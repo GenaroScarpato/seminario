@@ -222,12 +222,11 @@ const submitReport = async () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>📋 Nuevo Reporte</Text>
-          <Text style={styles.subtitle}>
-            Describe el problema que estás experimentando
-          </Text>
-        </View>
+       
+ <Text style={styles.title}>📋 Nuevo Reporte</Text>
+      <Text style={styles.subtitle}>
+        Describe el problema que estás experimentando
+      </Text>
 
         <View style={styles.form}>
           {/* Tipo de reporte */}
@@ -328,37 +327,23 @@ const submitReport = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    paddingTop: 40, // Espaciado superior para que no quede pegado al borde
+    backgroundColor: '#e8f5e9',
   },
   scrollView: {
     flex: 1,
-  },
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
     marginBottom: 5,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#6c757d',
+    textAlign: 'center',
   },
   form: {
     padding: 20,

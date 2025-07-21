@@ -45,7 +45,6 @@ const PedidosAdmin = () => {
   };
 
  const handleEditPedido = (pedido) => {
-  console.log('Pedido a editar:', pedido); // Verifica los datos en consola
   setSelectedPedido(pedido);
   setShowModal(true);
 };

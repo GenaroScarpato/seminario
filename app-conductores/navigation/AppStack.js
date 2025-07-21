@@ -11,8 +11,15 @@ const AppStack = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8e8e93',
+        tabBarActiveTintColor: '#1b5e20',       // Verde oscuro (activo)
+        tabBarInactiveTintColor: '#81c784',     // Verde medio (inactivo)
+        tabBarStyle: {
+          backgroundColor: '#e8f5e9',            // Fondo del tab (verde claro)
+          borderTopColor: '#c8e6c9',             // Borde superior suave
+        },
+        tabBarLabelStyle: {
+          fontWeight: 'bold',
+        },
       }}
     >
       <Tab.Screen name="Homes" component={HomeStack} options={{ title: 'Inicio' }} />

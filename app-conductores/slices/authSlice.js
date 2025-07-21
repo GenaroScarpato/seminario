@@ -1,7 +1,6 @@
 // slices/authSlice.js
 // Define el "slice" de Redux para la autenticación, incluyendo el estado,
 // las acciones asíncronas (thunks) y los reducers.
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'; // Importa createSlice y createAsyncThunk
 import api from '../services/api'; // Importa la instancia de Axios configurada
 import { getItem, setItem, deleteItem } from '../utils/storage'; // Importa las funciones de almacenamiento
@@ -14,12 +13,6 @@ const initialState = {
   error: null, // Almacena cualquier mensaje de error
 };
 
-// --- THUNKS (Acciones Asíncronas) ---
-
-/**
- * Thunk para verificar el estado de login al iniciar la aplicación.
- * Intenta obtener los datos del usuario del almacenamiento seguro.
- */
 export const checkLoginStatus = createAsyncThunk(
   'auth/checkLoginStatus',
   async (_, thunkAPI) => {
@@ -39,9 +32,6 @@ export const checkLoginStatus = createAsyncThunk(
         await deleteItem('user');
         return null;
       }
-      
-     
-      
       // Devuelve el usuario solo si tiene token
       return user?.token ? user : null;
     } catch (error) {
@@ -52,58 +42,40 @@ export const checkLoginStatus = createAsyncThunk(
   }
 );
 
-/**
- * Thunk para iniciar sesión de un conductor.
- * Realiza una petición POST al backend con DNI y contraseña.
- */
-/**
- * Thunk para iniciar sesión de un conductor.
- * Realiza una petición POST al backend con DNI y contraseña.
- */
 export const login = createAsyncThunk(
   'auth/login',
   async ({ dni, password }, thunkAPI) => {
     try {
-      
-      
       const response = await api.post('/auth/login', { dni, password });
       
-      const token = response.data.token;
-      
-      if (!token) {
-        return thunkAPI.rejectWithValue('No se recibió token');
+      // Verificar estructura de respuesta
+      if (!response.data.token || !response.data.user) {
+        return thunkAPI.rejectWithValue('Estructura de respuesta incorrecta');
       }
 
-      const decoded = jwtDecode(token);
-      
+      // Combinar token con datos del usuario
       const userData = {
-        ...decoded, // Incluye id, nombre, dni, iat, exp
-        token      // Añade el token al objeto
+        ...response.data.user,
+        token: response.data.token,
+        iat: jwtDecode(response.data.token).iat,
+        exp: jwtDecode(response.data.token).exp
       };
 
+      // Guardar en AsyncStorage
+      await setItem('user', userData);
       
-      // CRÍTICO: Esperar a que el storage termine antes de resolver
-      try {
-        await setItem('user', userData);
-      } catch (storageError) {
-        console.error('Error saving to storage:', storageError);
-        // Continuamos aunque falle el storage, porque Redux tendrá los datos
-      }
-      
-      
-      
-      return userData; // Ahora el estado de Redux tendrá el token
+      return userData;
     } catch (error) {
       console.error('Login error:', error);
-      return thunkAPI.rejectWithValue(error.response?.data?.message || 'Error en login');
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.msg || 
+        error.message || 
+        'Error en el login'
+      );
     }
   }
 );
 
-/**
- * Thunk para cerrar sesión.
- * Elimina los datos del usuario del almacenamiento seguro.
- */
 export const logout = createAsyncThunk('auth/logout', async () => {
   await deleteItem('user');
   await deleteItem('token'); // Si lo guardaste por separado
@@ -121,7 +93,39 @@ export const clearSession = createAsyncThunk(
     return null; // Retorna null para limpiar el estado
   }
 );
+// Add this with your other thunks in authSlice.js
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (profileData, thunkAPI) => {
+    try {
+      const state = thunkAPI.getState();
+      const token = state.auth.user?.token;
+      
+      if (!token) {
+        return thunkAPI.rejectWithValue('No autenticado');
+      }
 
+      const response = await api.put('/conductores/actualizar', profileData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Update the stored user data
+      const updatedUser = {
+        ...state.auth.user,
+        ...response.data,
+      };
+
+      await setItem('user', updatedUser);
+      
+      return updatedUser;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return thunkAPI.rejectWithValue(error.response?.data?.message || 'Error al actualizar perfil');
+    }
+  }
+);
 // --- SLICE ---
 // Crea el slice de Redux para la autenticación.
 const authSlice = createSlice({
@@ -192,7 +196,22 @@ const authSlice = createSlice({
         state.user = null;
         state.isLoading = false;
         state.error = null;
-      });
+      })
+      // Add this to your extraReducers in authSlice.js
+.addCase(updateProfile.pending, (state) => {
+  state.isLoading = true;
+  state.error = null;
+})
+.addCase(updateProfile.fulfilled, (state, action) => {
+  state.user = action.payload;
+  state.isLoading = false;
+  state.error = null;
+})
+.addCase(updateProfile.rejected, (state, action) => {
+  state.isLoading = false;
+  state.error = action.payload;
+});
+      
   },
 });
 
