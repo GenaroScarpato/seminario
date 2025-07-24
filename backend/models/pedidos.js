@@ -12,16 +12,25 @@ async function create(pool, data) {
     volumen,
     peso,
     estado,
-    scheduled_at
+    scheduled_at,
+    cliente_nombre,
+    cliente_telefono
   } = data;
 
   const query = `
-    INSERT INTO pedidos (direccion, lat, lng, volumen, peso, estado, scheduled_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO pedidos (
+      direccion, lat, lng, volumen, peso, estado, scheduled_at,
+      cliente_nombre, cliente_telefono
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *;
   `;
 
-  const values = [direccion, lat, lng, volumen, peso || null, estado || 'pendiente', scheduled_at];
+  const values = [
+    direccion, lat, lng, volumen, peso || null, estado || 'pendiente', scheduled_at,
+    cliente_nombre || null, cliente_telefono || null
+  ];
+
   const result = await pool.query(query, values);
   return result.rows[0];
 }
@@ -34,7 +43,9 @@ async function update(pool, id, data) {
     volumen,
     peso,
     estado,
-    scheduled_at
+    scheduled_at,
+    cliente_nombre,
+    cliente_telefono
   } = data;
 
   const query = `
@@ -45,15 +56,22 @@ async function update(pool, id, data) {
       volumen = $4,
       peso = $5,
       estado = $6,
-      scheduled_at = $7
-    WHERE id = $8
+      scheduled_at = $7,
+      cliente_nombre = $8,
+      cliente_telefono = $9
+    WHERE id = $10
     RETURNING *;
   `;
 
-  const values = [direccion, lat, lng, volumen, peso || null, estado, scheduled_at, id];
+  const values = [
+    direccion, lat, lng, volumen, peso || null, estado, scheduled_at,
+    cliente_nombre || null, cliente_telefono || null, id
+  ];
+
   const result = await pool.query(query, values);
   return result.rows[0];
 }
+
 
 async function updateEstado(pool, id, estado) {
   const query = `

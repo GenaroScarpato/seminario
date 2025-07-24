@@ -327,7 +327,7 @@ const submitReport = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 40, // Espaciado superior para que no quede pegado al borde
+    paddingTop: 50, // Espaciado superior para que no quede pegado al borde
     backgroundColor: '#e8f5e9',
   },
   scrollView: {

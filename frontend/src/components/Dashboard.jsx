@@ -6,6 +6,8 @@ import PedidoTable from './pedidos/PedidoTable';
 import VehicleTable from './vehicles/VehicleTable';
 import { MapContext } from '../context/MapContext';
 import { API_BASE_URL, API_ROUTES } from '@config/api';
+import styles from './Dashboard.module.css';
+
 const Dashboard = () => {
   const { orders } = useContext(OrderContext);
   const { vehicles } = useContext(VehicleContext);
@@ -15,12 +17,11 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const { setMapState } = useContext(MapContext);
 
-const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' );
-
-const ordersPending = orders.filter(p => p.estado === 'pendiente');
+  const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' && v.conductor_id && v.conductor_estado === 'disponible');
+  const ordersPending = orders.filter(p => p.estado === 'pendiente');
 
   const asignarPedidos = async () => {
-    setLoading(true);
+    setLoading(true); 
     setError(null);
     setAssignments(null);
     setUnassignedOrders([]);
@@ -30,10 +31,10 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
         pedidos: ordersPending,
         vehiculos: vehiculosDisponibles
       });
-            const asignaciones = res.data.asignaciones || {};
-            const no_asignados = res.data.no_asignados || [];
+      const asignaciones = res.data.asignaciones || {};
+      const no_asignados = res.data.no_asignados || [];
 
-          await axios.post(`${API_BASE_URL}${API_ROUTES.ASIGNACIONES.ASIGNAR_PEDIDOS}`, { asignaciones });
+      await axios.post(`${API_BASE_URL}${API_ROUTES.ASIGNACIONES.ASIGNAR_PEDIDOS}`, { asignaciones });
 
       setAssignments(asignaciones);
       setUnassignedOrders(no_asignados);
@@ -98,54 +99,38 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
   };
 
   return (
-    <div className="container my-4">
-      <h1>Dashboard Logística Inteligente</h1>
-
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      {/* 🔹 KPIs */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card text-white bg-primary mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Pedidos totales</h5>
-              <p className="card-text fs-4">{orders.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-success mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Pedidos asignados</h5>
-              <p className="card-text fs-4">
-                {assignments ? Object.values(assignments).flat().length : 0}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-warning mb-3">
-            <div className="card-body">
-              <h5 className="card-title">No asignados</h5>
-              <p className="card-text fs-4">{unassignedOrders.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-info mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Vehículos disponibles</h5>
-              <p className="card-text fs-4">{vehiculosDisponibles.length}</p>
-            </div>
-          </div>
-        </div>
+    <div className={styles.dashboardContainer}>
+      <div className={styles.header}>
+        <h1>Dashboard Logística Inteligente</h1>
+        {error && <div className="alert alert-danger">{error}</div>}
       </div>
 
+     {/* 🔹 KPIs */}
+<div className={styles.kpiGrid}>
+  <div className={`${styles.kpiCard} ${styles.primary}`}>
+    <h5>📦 Pedidos totales</h5>
+    <p>{orders.length}</p>
+  </div>
+  <div className={`${styles.kpiCard} ${styles.success}`}>
+    <h5>✅ Pedidos asignados</h5>
+    <p>{assignments ? Object.values(assignments).flat().length : 0}</p>
+  </div>
+  <div className={`${styles.kpiCard} ${styles.warning}`}>
+    <h5>❌ No asignados</h5>
+    <p>{unassignedOrders.length}</p>
+  </div>
+  <div className={`${styles.kpiCard} ${styles.info}`}>
+    <h5>🚚 Vehículos disponibles</h5>
+    <p>{vehiculosDisponibles.length}</p>
+  </div>
+</div>
+
+
       {/* 🔹 Asignación */}
-      <section className="mb-4">
+      <section className={styles.section}>
         <h2>Asignar Pedidos</h2>
         <button
-          className="btn btn-primary"
+          className={styles.assignButton}
           onClick={asignarPedidos}
           disabled={loading}
         >
@@ -154,90 +139,115 @@ const ordersPending = orders.filter(p => p.estado === 'pendiente');
       </section>
 
       {/* 🔹 Resultado de asignación */}
-      {assignments &&  (
-        <section className="mb-4">
-          <h3>Resumen por vehículo</h3>
-          <table className="table table-bordered">
-            <thead>
-              <tr>
-                <th>Vehículo</th>
-                <th>Pedidos asignados</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(assignments).map(([vehiculoId, pedidos]) => (
-                <tr key={vehiculoId}>
-                  <td>{getVehicleInfo(vehiculoId)}</td>
-                  <td>
-                    <ul className="mb-0 ps-3">
-                      {pedidos.map(id => (
-                        <li key={id}>{getPedidoResumen(id)}</li>
-                      ))}
-                    </ul>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      
-    )
-  
-      }
+     {/* 🔹 Resultado de asignación */}
+{assignments && (
+  <section className={styles.assignmentSection}>
+    <h3>Resumen por vehículo</h3>
+    <table className={styles.enhancedTable}>
+      <thead>
+        <tr>
+          <th>Vehículo</th>
+          <th>Pedidos asignados</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(assignments).map(([vehiculoId, pedidos]) => (
+          <tr key={vehiculoId}>
+            <td>{getVehicleInfo(vehiculoId)}</td>
+            <td>
+              <ul style={{margin: 0, paddingLeft: '1rem'}}>
+                {pedidos.map(id => (
+                  <li key={id}>{getPedidoResumen(id)}</li>
+                ))}
+              </ul>
+            </td>
+            <td><span className={`${styles.badge} ${styles.badgeSuccess}`}>Asignado</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+)}
 
-      {/* 🔹 Pedidos no asignados */}
-      {unassignedOrders.length > 0 && (
-        <section className="mb-4">
-          <div className="alert alert-warning">
-            <h4>Pedidos no asignados</h4>
-            <p>Los siguientes pedidos no pudieron ser asignados:</p>
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Dirección</th>
-                  <th>Peso</th>
-                  <th>Volumen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unassignedOrders.map(id => {
-                  const d = getPedidoDetails(id);
-                  return (
-                    <tr key={id}>
-                      <td>{id}</td>
-                      <td>{d.direccion}</td>
-                      <td>{d.peso}</td>
-                      <td>{d.volumen}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
+{/* 🔹 Pedidos no asignados */}
+{unassignedOrders.length > 0 && (
+  <section className={styles.unassignedSection}>
+    <div className={styles.unassignedHeader}>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <h3>Pedidos no asignados</h3>
+    </div>
+    <p>Los siguientes pedidos no pudieron ser asignados por falta de capacidad vehicular:</p>
+    <table className={styles.enhancedTable}>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Dirección</th>
+          <th>Peso</th>
+          <th>Volumen</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {unassignedOrders.map(id => {
+          const d = getPedidoDetails(id);
+          return (
+            <tr key={id}>
+              <td>{id}</td>
+              <td>{d.direccion}</td>
+              <td>{d.peso} kg</td>
+              <td>{d.volumen} m³</td>
+              <td><span className={`${styles.badge} ${styles.badgeDanger}`}>No asignado</span></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </section>
+)}
       {/* 🔹 Tablas opcionales */}
-      <section className="mb-4">
-        <h2>Todos los Pedidos</h2>
-<PedidoTable pedidos={orders} showActions={false} /> 
-     </section>
+  {/* 🔹 Tablas opcionales */}
+<section className={styles.section}>
+  <h2>Todos los Pedidos</h2>
+  <PedidoTable 
+    pedidos={orders} 
+    showActions={false}
+    className={styles.enhancedTable} 
+  /> 
+</section>
 
-      <section className="mb-4">
-        <h2>Vehículos disponibles</h2>
-        <VehicleTable vehicles={vehiculosDisponibles} showActions={false} />
-      </section>
-
+<section className={styles.section}>
+  <h2>Vehículos disponibles</h2>
+  <VehicleTable 
+    vehicles={vehiculosDisponibles} 
+    showActions={false}
+    className={styles.enhancedTable}
+  />
+</section>
       {/* 🔹 Futuro: IA */}
-      <section className="mb-4">
-        <h2>IA - Funciones próximas</h2>
-        <ul>
-          <li>Predicción de ETA </li> 
-          <li>Recomendación de rutas óptimas</li>
-          <li>Detección de zonas problemáticas</li>
-        </ul>
-      </section>
+  {/* 🔹 Futuro: IA */}
+<section className={styles.aiSection}>
+  <h2>IA - Funciones próximas</h2>
+  <div className={styles.aiFeatures}>
+    <div className={styles.aiFeatureCard}>
+      <div className={styles.aiFeatureIcon}>⏱️</div>
+      <h3>Predicción de ETA</h3>
+      <p>Estimación precisa de tiempos de llegada usando modelos predictivos avanzados.</p>
+    </div>
+    <div className={styles.aiFeatureCard}>
+      <div className={styles.aiFeatureIcon}>🗺️</div>
+      <h3>Recomendación de rutas</h3>
+      <p>Optimización inteligente de rutas considerando tráfico, clima y otros factores.</p>
+    </div>
+    <div className={styles.aiFeatureCard}>
+      <div className={styles.aiFeatureIcon}>⚠️</div>
+      <h3>Detección de zonas</h3>
+      <p>Identificación proactiva de áreas con problemas recurrentes de entrega.</p>
+    </div>
+  </div>
+</section>
     </div>
   );
 };

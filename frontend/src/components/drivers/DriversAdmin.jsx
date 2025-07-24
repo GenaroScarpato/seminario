@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
-import { Button, Modal } from 'react-bootstrap';
-import { FaPlus } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import DriverForm from './DriverForm';
 import DriverFilters from './DriverFilters';
 import { DriverContext } from '../../context/DriverContext';
-import { VehicleContext } from '../../context/VehicleContext'; 
+import { VehicleContext } from '../../context/VehicleContext';
+import styles from '../Dashboard.module.css';
 
 const DriversAdmin = () => {
   const {
@@ -13,7 +13,7 @@ const DriversAdmin = () => {
     updateDriver,
     deleteDriver,
   } = useContext(DriverContext);
-    const { vehicles } = useContext(VehicleContext); 
+  const { vehicles } = useContext(VehicleContext);
 
   const [showModal, setShowModal] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -59,30 +59,31 @@ const DriversAdmin = () => {
   });
 
   return (
-    <div className="container-fluid py-4">
+    <div className={`${styles.dashboardContainer} ${styles.section}`}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Administración de Conductores</h2>
-        <Button variant="primary" onClick={() => handleOpenModal()}>
+        <button
+          className={styles.assignButton}
+          onClick={() => handleOpenModal()}
+        >
           <FaPlus className="me-2" /> Nuevo Conductor
-        </Button>
+        </button>
       </div>
 
-      <div className="row mb-3">
-        <div className="col-12">
-          <DriverFilters
-            selectedEstado={selectedEstado}
-            onEstadoChange={setSelectedEstado}
-            searchName={searchName}
-            onSearchNameChange={setSearchName}
-            vehicles={vehicles}
-            selectedVehicle={selectedVehicle}
-            onVehicleChange={setSelectedVehicle}
-          />
-        </div>
+      <div className="mb-3">
+        <DriverFilters
+          selectedEstado={selectedEstado}
+          onEstadoChange={setSelectedEstado}
+          searchName={searchName}
+          onSearchNameChange={setSearchName}
+          vehicles={vehicles}
+          selectedVehicle={selectedVehicle}
+          onVehicleChange={setSelectedVehicle}
+        />
       </div>
 
-      <div className="table-responsive">
-        <table className="table table-striped table-bordered table-hover">
+      <div className={styles.tableContainer}>
+        <table className={styles.enhancedTable}>
           <thead>
             <tr>
               <th>Nombre</th>
@@ -108,9 +109,8 @@ const DriversAdmin = () => {
                     <select
                       value={driver.estado || 'disponible'}
                       onChange={e => updateDriver({ ...driver, estado: e.target.value })}
-                      className="form-select form-select-sm"
-                      aria-label="Estado del conductor"
-                     >
+                      className={styles.statusSelect}
+                    >
                       <option value="disponible">Disponible</option>
                       <option value="inactivo">Inactivo</option>
                       <option value="suspendido">Suspendido</option>
@@ -118,20 +118,18 @@ const DriversAdmin = () => {
                   </td>
                   <td>{vehicleInfo}</td>
                   <td>
-                    <div className="btn-group" role="group" aria-label="Acciones del conductor">
+                    <div className={styles.actions}>
                       <button
-                        type="button"
-                        className="btn btn-primary btn-sm me-1"
+                        className={styles.editButton}
                         onClick={() => handleOpenModal(driver)}
                       >
-                        Editar
+                        <FaEdit className="me-1" /> Editar
                       </button>
                       <button
-                        type="button"
-                        className="btn btn-danger btn-sm"
+                        className={styles.deleteButton}
                         onClick={() => handleDeleteDriver(driver.id)}
                       >
-                        Eliminar
+                        <FaTrash className="me-1" /> Eliminar
                       </button>
                     </div>
                   </td>
@@ -139,27 +137,50 @@ const DriversAdmin = () => {
               );
             }) : (
               <tr>
-                <td colSpan="6" className="text-center">No se encontraron conductores</td>
+                <td colSpan="6" className={styles.noData}>No se encontraron conductores</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Modal con react-bootstrap */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg" backdrop="static" keyboard={false}>
-  <Modal.Header closeButton>
-    <Modal.Title>{selectedDriver ? 'Editar' : 'Nuevo'} Conductor</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    <DriverForm 
-      onSubmit={handleSubmit} 
-      driver={selectedDriver} 
-      vehicles={vehicles} 
-    />
-  </Modal.Body>
-</Modal>
-
+      {/* Modal */}
+      {showModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h3>{selectedDriver ? 'Editar' : 'Nuevo'} Conductor</h3>
+              <button
+                className={styles.modalCloseButton}
+                onClick={handleCloseModal}
+              >
+                &times;
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <DriverForm 
+                onSubmit={handleSubmit} 
+                driver={selectedDriver} 
+                vehicles={vehicles} 
+              />
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleCloseModal}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                onClick={() => document.getElementById('driver-form').requestSubmit()}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

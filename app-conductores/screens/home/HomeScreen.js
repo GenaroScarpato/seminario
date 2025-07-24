@@ -42,7 +42,7 @@ const HomeScreen = () => {
       return Alert.alert('Permiso denegado', 'Necesitamos acceso a tu ubicación');
     }
 
-    const s = io('http://192.168.0.231:3000', { transports: ['websocket'] });
+    const s = io('http://192.168.1.88:3000', { transports: ['websocket'] });
     setSocket(s);
     setActivo(true);
 
@@ -55,6 +55,7 @@ const HomeScreen = () => {
         lng: longitude,
         dni: user.dni,
         timestamp: new Date().toISOString(),
+        
       });
     }, 5000);
 
@@ -72,7 +73,7 @@ const HomeScreen = () => {
         return { color: '#2196F3', backgroundColor: '#E3F2FD' };
       case 'entregado':
         return { color: '#4CAF50', backgroundColor: '#E8F5E9' };
-      case 'fallido':
+      case 'cancelado':
         return { color: '#F44336', backgroundColor: '#FFEBEE' };
       default:
         return { color: '#607D8B', backgroundColor: '#F5F5F5' };
@@ -209,7 +210,8 @@ const HomeScreen = () => {
       {!activo ? (
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => navigation.navigate('JornadaScreen', { pedidos })}
+onPress={() => navigation.navigate('JornadaScreen', { pedidos, user })}
+
           activeOpacity={0.8}
         >
           <Text style={styles.primaryButtonIcon}>🚀</Text>

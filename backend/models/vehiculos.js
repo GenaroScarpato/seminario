@@ -1,12 +1,20 @@
 exports.obtenerTodos = async (pool) => {
   try {
-    const result = await pool.query('SELECT * FROM vehiculos ORDER BY id');
+    const result = await pool.query(`
+      SELECT 
+        v.*, 
+        c.estado AS conductor_estado
+      FROM vehiculos v
+      LEFT JOIN conductores c ON v.conductor_id = c.id
+      ORDER BY v.id
+    `);
     return result.rows;
   } catch (error) {
     console.error('Error al obtener vehículos:', error);
     throw error;
   }
 };
+
 
 exports.obtenerPorId = async (pool, id) => {
   try {

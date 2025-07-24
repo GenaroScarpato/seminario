@@ -8,7 +8,9 @@ const PedidoForm = ({ onSubmit, pedido = null }) => {
     volumen: pedido?.volumen || '',
     peso: pedido?.peso || '',
     estado: pedido?.estado || 'pendiente',
-    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : ''
+    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : '',
+    cliente_nombre: pedido?.cliente_nombre || '',
+  cliente_telefono: pedido?.cliente_telefono || ''
   });
 
 // NUEVO: actualizar cuando cambia el pedido
@@ -18,7 +20,9 @@ useEffect(() => {
     volumen: pedido?.volumen || '',
     peso: pedido?.peso || '',
     estado: pedido?.estado || 'pendiente',
-    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : ''
+    scheduled_at: pedido?.scheduled_at ? pedido.scheduled_at.slice(0, 16) : '',
+    cliente_nombre: pedido?.cliente_nombre || '',
+    cliente_telefono: pedido?.cliente_telefono || ''
   });
 }, [pedido]);
 
@@ -219,6 +223,32 @@ useEffect(() => {
             onChange={handleChange}
           />
         </div>
+        <div className="mb-3 col-md-6">
+  <label htmlFor="cliente_nombre" className="form-label fw-bold">Nombre del Cliente</label>
+  <input
+    type="text"
+    className="form-control"
+    id="cliente_nombre"
+    name="cliente_nombre"
+    value={formData.cliente_nombre}
+    onChange={handleChange}
+    required
+  />
+</div>
+
+<div className="mb-3 col-md-6">
+  <label htmlFor="cliente_telefono" className="form-label fw-bold">Teléfono del Cliente</label>
+  <input
+    type="tel"
+    className="form-control"
+    id="cliente_telefono"
+    name="cliente_telefono"
+    value={formData.cliente_telefono}
+    onChange={handleChange}
+    required
+  />
+</div>
+
       </div>
 
       {error && <div className="alert alert-danger mt-2">{error}</div>}

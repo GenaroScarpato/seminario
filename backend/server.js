@@ -49,8 +49,7 @@ class Server {
                 const allowlist = [
                     'http://localhost:5173',
                     'http://192.168.0.231:5173',
-                    'http://localhost:8081'
-                ];
+                    'http://localhost:8081'                ];
                 if (!origin || allowlist.includes(origin)) {
                     callback(null, true);
                 } else {

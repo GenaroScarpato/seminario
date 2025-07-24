@@ -6,8 +6,10 @@ import { MapContext } from '../context/MapContext';
 import { WebSocketContext } from '../context/WebSocketContext';
 import { DriverProvider } from '../context/DriverContext';
 import { initialMapState, initialWebSocketState } from '../context/initialState';
-import { ReportProvider } from '../context/ReportContext'; // <<<<<<<<<< IMPORT ReportProvider HERE
+import { ReportProvider } from '../context/ReportContext';
 import { API_BASE_URL, API_ROUTES } from '../config/api';
+import styles from './AdminLayout.module.css';
+import { FaBox, FaCar, FaUserTie, FaMap, FaChartBar, FaTachometerAlt } from 'react-icons/fa';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -16,8 +18,6 @@ const AdminLayout = () => {
   const [vehicles, setVehicles] = useState([]);
   const [mapState, setMapState] = useState(initialMapState);
   const [webSocketState, setWebSocketState] = useState(initialWebSocketState);
-  // Remove the local reportes state as ReportProvider will manage it
-  // const [reportes, setReportes] = useState([]);
 
   useEffect(() => {
     fetchPedidos();
@@ -47,50 +47,64 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { path: '/admin/dashboard', icon: '📊', label: 'Dashboard' },
-    { path: '/admin/pedidos', icon: '📦', label: 'Pedidos' },
-    { path: '/admin/vehiculos', icon: '🚗', label: 'Vehículos' },
-    { path: '/admin/conductores', icon: '👨‍💼', label: 'Conductores' },
-    { path: '/admin/mapa', icon: '🗺️', label: 'Mapa' },
-    { path: '/admin/reportes', icon: '📊', label: 'Reportes' },
+    { path: '/admin/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard' },
+    { path: '/admin/pedidos', icon: <FaBox />, label: 'Pedidos' },
+    { path: '/admin/vehiculos', icon: <FaCar />, label: 'Vehículos' },
+    { path: '/admin/conductores', icon: <FaUserTie />, label: 'Conductores' },
+    { path: '/admin/mapa', icon: <FaMap />, label: 'Mapa' },
+    { path: '/admin/reportes', icon: <FaChartBar />, label: 'Reportes' },
   ];
 
   return (
-    // <<<<<<<<<< USE ReportProvider HERE instead of ReportContext.Provider
     <ReportProvider>
       <OrderContext.Provider value={{ orders, setOrders }}>
         <VehicleContext.Provider value={{ vehicles, setVehicles }}>
           <DriverProvider>
             <MapContext.Provider value={{ mapState, setMapState }}>
               <WebSocketContext.Provider value={{ webSocketState, setWebSocketState }}>
-                <div className="d-flex bg-light" style={{ minHeight: '100vh' }}>
-                  <aside className="bg-white border-end" style={{ width: '250px' }}>
-                    <div className="d-flex align-items-center justify-content-center py-3 border-bottom">
-                      <span className="fs-4 text-primary me-2">📦</span>
-                      <h2 className="mb-0 text-primary">Panel Admin</h2>
+                <div className={styles.layoutContainer}>
+                  <aside className={styles.sidebar}>
+                    <div className={styles.sidebarHeader}>
+                      <div className={styles.sidebarLogo}>
+                        <span className={styles.sidebarLogoIcon}>📦</span>
+                        <h1 className={styles.sidebarLogoText}>LogiTrack</h1>
+                      </div>
                     </div>
 
-                    <nav className="mt-3">
-                      <div className="nav flex-column">
-                        {menuItems.map((item, index) => (
+                    <nav className={styles.navMenu}>
+                      {menuItems.map((item, index) => (
+                        <div 
+                          key={index} 
+                          className={styles.navItem}
+                        >
                           <Link
-                            key={index}
                             to={item.path}
-                            className={`nav-link d-flex align-items-center px-3 py-2 ${
-                              location.pathname === item.path ? 'bg-primary text-white' : 'text-dark'
+                            className={`${styles.navLink} ${
+                              location.pathname === item.path ? 'active' : ''
                             }`}
                           >
-                            <span className="me-2">{item.icon}</span>
+                            <span className={styles.navIcon}>{item.icon}</span>
                             <span>{item.label}</span>
+                            {location.pathname === item.path && (
+                              <span className={styles.activeDot} />
+                            )}
                           </Link>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </nav>
+
+                    <div className={styles.footer}>
+                      <div className={styles.sessionStatus}>
+                        <span className={styles.sessionDot} />
+                        <span>Sesión activa</span>
+                      </div>
+                      <p>Sistema de Logística v1.0</p>
+                    </div>
                   </aside>
 
-                  <main className="flex-grow-1 p-4">
-                    <div className="card">
-                      <div className="card-body">
+                  <main className={styles.mainContent}>
+                    <div className={styles.contentCard}>
+                      <div className={styles.contentBody}>
                         <Outlet />
                       </div>
                     </div>

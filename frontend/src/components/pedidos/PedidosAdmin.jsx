@@ -72,12 +72,12 @@ const PedidosAdmin = () => {
           </button>
         </div>
       </div>
-
-      <PedidoTable 
-        pedidos={orders} 
-        onDelete={handleDeletePedido}
-        onEdit={handleEditPedido}
-      />
+<PedidoTable 
+  pedidos={orders} 
+  onDelete={handleDeletePedido}
+  onEdit={handleEditPedido}
+  showActions={true}
+/>
 
       {/* Modal */}
       <div className={`modal fade ${showModal ? 'show' : ''}`} 

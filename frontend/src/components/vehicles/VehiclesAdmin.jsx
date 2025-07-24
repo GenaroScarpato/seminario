@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { VehicleContext } from '../../context/VehicleContext';
 import { API_BASE_URL, API_ROUTES } from '../../config/api';
-
+import styles from '../Dashboard.module.css';
 import VehicleForm from './VehicleForm';
 import VehicleFilters from './VehicleFilters';
+import {  FaEdit, FaTrash } from 'react-icons/fa';
+
 
 const VehiclesAdmin = ({ showActions = true }) => {  // Añadimos la prop showActions
   const { vehicles, setVehicles } = useContext(VehicleContext);
@@ -125,11 +127,11 @@ const VehiclesAdmin = ({ showActions = true }) => {  // Añadimos la prop showAc
   };
 
  return (
-    <div className="container mt-4">
+    <div className={`${styles.dashboardContainer} ${styles.section}`}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Administración de Vehículos</h2>
-        {showActions && (  // Solo muestra el botón si showActions es true
-          <button className="btn btn-primary" onClick={handleOpenNew}>
+        {showActions && (
+          <button className={styles.assignButton} onClick={handleOpenNew}>
             Nuevo Vehículo
           </button>
         )}
@@ -142,68 +144,72 @@ const VehiclesAdmin = ({ showActions = true }) => {  // Añadimos la prop showAc
         />
       </div>
 
-      <table className="table table-striped table-bordered table-hover">
-        <thead>
-          <tr>
-            <th>Patente</th>
-            <th>Marca</th>
-            <th>Modelo</th>
-            <th>Año</th>
-            <th>Tipo</th>
-            <th>Capacidad</th>
-            <th>Estado</th>
-            {showActions && <th>Acciones</th>}  {/* Columna condicional */}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredVehicles.length === 0 ? (
+      <div className={styles.tableContainer}>
+        <table className={styles.enhancedTable}>
+          <thead>
             <tr>
-              <td colSpan="8" className="text-center">
-                No hay vehículos disponibles
-              </td>
+              <th>Patente</th>
+              <th>Marca</th>
+              <th>Modelo</th>
+              <th>Año</th>
+              <th>Tipo</th>
+              <th>Capacidad</th>
+              <th>Estado</th>
+              {showActions && <th>Acciones</th>}
             </tr>
-          ) : (
-            filteredVehicles.map(vehicle => (
-              <tr key={vehicle.id}>
-                <td>{vehicle.patente}</td>
-                <td>{vehicle.marca}</td>
-                <td>{vehicle.modelo}</td>
-                <td>{vehicle.anio}</td>
-                <td>{vehicle.tipo}</td>
-                <td>{vehicle.capacidad}</td>
-                <td>
-                  <select
-                    value={vehicle.estado}
-                    onChange={e => handleUpdateVehicleStatus(vehicle.id, e.target.value)}
-                    className="form-select form-select-sm"
-                    style={{ maxWidth: '150px' }}
-                  >
-                    <option value="disponible">Disponible</option>
-                    <option value="en_servicio">En servicio</option>
-                    <option value="mantenimiento">Mantenimiento</option>
-                    <option value="inactivo">Inactivo</option>
-                  </select>
-                </td>
-                <td>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteVehicle(vehicle.id)}
-                  >
-                    Eliminar
-                  </button>{' '}
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleEditVehicle(vehicle)}
-                  >
-                    Editar
-                  </button>
+          </thead>
+          <tbody>
+            {filteredVehicles.length === 0 ? (
+              <tr>
+                <td colSpan={showActions ? 8 : 7} className={styles.noData}>
+                  No hay vehículos disponibles
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
+            ) : (
+              filteredVehicles.map(vehicle => (
+                <tr key={vehicle.id}>
+                  <td>{vehicle.patente}</td>
+                  <td>{vehicle.marca}</td>
+                  <td>{vehicle.modelo}</td>
+                  <td>{vehicle.anio}</td>
+                  <td>{vehicle.tipo}</td>
+                  <td>{vehicle.capacidad}</td>
+                  <td>
+                    <select
+                      value={vehicle.estado}
+                      onChange={e => handleUpdateVehicleStatus(vehicle.id, e.target.value)}
+                      className={styles.statusSelect}
+                    >
+                      <option value="disponible">Disponible</option>
+                      <option value="en_servicio">En servicio</option>
+                      <option value="mantenimiento">Mantenimiento</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </td>
+                  {showActions && (
+  <td>
+    <div className={styles.actions}>
+      <button
+        className={styles.editButton}
+        onClick={() => handleEditVehicle(vehicle)}
+      >
+        <FaEdit className="me-1" /> Editar
+      </button>
+      <button
+        className={styles.deleteButton}
+        onClick={() => handleDeleteVehicle(vehicle.id)}
+      >
+        <FaTrash className="me-1" /> Eliminar
+      </button>
+    </div>
+  </td>
+)}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       {/* Modal */}
       <div
         className={`modal fade ${showModal ? 'show' : ''}`}

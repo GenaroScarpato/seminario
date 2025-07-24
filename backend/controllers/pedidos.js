@@ -16,7 +16,6 @@ async function createPedido(req, res) {
     const nuevoPedido = await pedidosModel.create(req.pool, pedidoData);
     res.status(201).json(nuevoPedido);
   } catch (err) {
-    console.log(nuevoPedido)
     res.status(400).json({ error: err.message });
   }
 }
