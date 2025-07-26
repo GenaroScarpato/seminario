@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  ImageBackground,
+} from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { login } from '../../slices/authSlice';
 import { getItem } from '../../utils/storage';
+import { BlurView } from 'expo-blur'; 
 
 const LoginScreen = () => {
   const [dni, setDni] = useState('');
@@ -16,26 +28,19 @@ const LoginScreen = () => {
     const checkActiveSession = async () => {
       try {
         const userData = await getItem('user');
-        
-        
         if (userData?.token && userData.exp > Date.now() / 1000) {
-          
-        } else if (userData?.token) {
-         
-        } else {
-          
+          // redirigir si hay sesión activa
         }
       } catch (error) {
-        console.warn('Error checking active session:', error);
+        console.warn('Error al revisar sesión:', error);
       }
     };
     checkActiveSession();
   }, []);
 
-  // Navegación automática cuando el usuario se autentica
   useEffect(() => {
     if (user?.token) {
-      
+      // redirigir si login ok
     }
   }, [user]);
 
@@ -44,11 +49,7 @@ const LoginScreen = () => {
       Alert.alert('Error', 'Por favor ingresa tu DNI y contraseña');
       return;
     }
-    
-  
-    
-    const result = await dispatch(login({ dni, password }));
-    
+    await dispatch(login({ dni, password }));
   };
 
   return (
@@ -56,54 +57,43 @@ const LoginScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View accessibilityRole="form" style={styles.formContainer}>
-        <Text style={styles.title}>Iniciar Sesión</Text>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>DNI</Text>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1542281286-9e0a16bb7366' }}
+        style={styles.background}
+        blurRadius={2}
+      >
+        <BlurView intensity={60} tint="light" style={styles.card}>
+          <Text style={styles.title}>🚛 Bienvenido Conductor</Text>
+
           <TextInput
             style={styles.input}
-            placeholder="Ingresa tu DNI"
+            placeholder="DNI"
             keyboardType="numeric"
             value={dni}
             onChangeText={setDni}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="username"
-            importantForAutofill="yes"
+            placeholderTextColor="#ccc"
           />
-        </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contraseña</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ingresa tu contraseña"
+            placeholder="Contraseña"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
-            autoCapitalize="none"
-            autoComplete="password"
-            importantForAutofill="yes"
-            textContentType="password"
+            placeholderTextColor="#ccc"
           />
-        </View>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+          {error && <Text style={styles.errorText}>{error}</Text>}
 
-        {isLoading ? (
-          <ActivityIndicator size="large" style={styles.loader} />
-        ) : (
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Ingresar"
-              onPress={handleSubmit}
-              color="#007AFF"
-              disabled={isLoading}
-            />
-          </View>
-        )}
-      </View>
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#00D1A0" style={{ marginTop: 20 }} />
+          ) : (
+            <TouchableOpacity style={styles.loginButton} onPress={handleSubmit}>
+              <Text style={styles.loginText}>Ingresar</Text>
+            </TouchableOpacity>
+          )}
+        </BlurView>
+      </ImageBackground>
     </KeyboardAvoidingView>
   );
 };
@@ -111,56 +101,67 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  background: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
   },
-  formContainer: {
-    padding: 20,
-    marginHorizontal: 20,
-    backgroundColor: 'white',
-    borderRadius: 10,
+  card: {
+    marginHorizontal: 25,
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-    color: '#333',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    marginBottom: 8,
-    fontWeight: '600',
-    color: '#555',
-  },
-  input: {
-    height: 50,
-    borderColor: '#ddd',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  buttonContainer: {
+ title: {
+  fontSize: 28,
+  fontWeight: 'bold',
+  color: '#f1f1f1',
+  marginBottom: 30,
+  textAlign: 'center',
+  textShadowColor: 'rgba(0, 0, 0, 0.6)',
+  textShadowOffset: { width: 0, height: 2 },
+  textShadowRadius: 4,
+},
+  input: {
+    width: '100%',
+    height: 50,
+    marginBottom: 18,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)', // más oscuro para mayor contraste
+  color: '#fefefe', // texto más blanco
+  },
+  loginButton: {
+    width: '100%',
+    backgroundColor: '#00D1A0',
+    paddingVertical: 14,
+    borderRadius: 12,
     marginTop: 10,
-    borderRadius: 8,
-    overflow: 'hidden',
+    shadowColor: '#00D1A0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  loginText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   errorText: {
-    color: 'red',
-    marginBottom: 15,
+    color: '#ff6b6b',
     textAlign: 'center',
-  },
-  loader: {
-    marginVertical: 20,
+    marginTop: 5,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -37,7 +37,7 @@ const iconConductor = new L.Icon({
 });
 
 // Componente para manejar el heatmap
-const HeatmapLayer = ({ reportes }) => {
+const HeatmapLayer = React.memo(({ reportes }) => { // Envuelto en React.memo
   const map = useMap();
   const heatLayerRef = useRef(null);
 
@@ -92,144 +92,164 @@ const HeatmapLayer = ({ reportes }) => {
     };
   }, [reportes, map]);
 
-  return null;
-};
+  return null; // No necesita renderizar nada directamente
+});
 
 const Mapa = () => {
-  const { orders } = useContext(OrderContext);
+  const { orders, fetchOrders } = useContext(OrderContext);
   const { mapState } = useContext(MapContext);
-  const { vehicles } = useContext(VehicleContext);
-  const { drivers } = useContext(DriverContext);
+  const { vehicles, fetchVehicles } = useContext(VehicleContext);
+  const { drivers, fetchDrivers } = useContext(DriverContext);
   const { reportes } = useContext(ReportContext);
 
   const [rutasOptimizadas, setRutasOptimizadas] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [socketError, setSocketError] = useState(null);
-  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(true); // Valor inicial a true para mostrar el heatmap
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const socketRef = useRef(null);
-  const assignments = mapState.assignments;
+  const refreshIntervalRef = useRef(null);
+  const assignments = mapState.assignments; // Extrae assignments aquí
 
-  const validOrders = orders
-    .map(p => {
-      const lat = Number(p.lat), lng = Number(p.lng);
-      if (isNaN(lat) || isNaN(lng)) return null;
-      return { ...p, position: [lat, lng] };
-    })
-    .filter(Boolean);
+  const validOrders = useMemo(() => { // Usa useMemo para memoizar esta computación
+    return orders
+      .map(p => {
+        const lat = Number(p.lat), lng = Number(p.lng);
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return { ...p, position: [lat, lng] };
+      })
+      .filter(Boolean);
+  }, [orders]); // La dependencia es 'orders'. Solo se recalcula si 'orders' cambia.
 
-  useEffect(() => {
+  // Función para actualizar datos, envuelta en useCallback
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const promises = [];
+      if (fetchOrders) promises.push(fetchOrders());
+      if (fetchVehicles) promises.push(fetchVehicles());
+      if (fetchDrivers) promises.push(fetchDrivers()); // Asegúrate que fetchDrivers es también un useCallback en DriverContext
+      await Promise.all(promises);
+      setLastUpdate(new Date());
+      console.log('✅ Datos actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error al actualizar datos:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchOrders, fetchVehicles, fetchDrivers]); // Dependencias: las funciones fetch estables
+
+  useEffect(() => { // Efecto para la carga inicial de datos y el intervalo de actualización
+    refreshData(); // Ejecuta la primera vez
+
+    refreshIntervalRef.current = setInterval(refreshData, 20000); // Establece el intervalo para refrescar
+
+    return () => {
+      clearInterval(refreshIntervalRef.current); // Limpia el intervalo al desmontar
+    };
+  }, [refreshData]); // La dependencia es la función refreshData, que es estable
+
+  useEffect(() => { // Efecto para obtener rutas optimizadas
     const fetchRoutes = async () => {
-      if (!assignments) return;
-      const rutas = [];
+      if (!assignments) {
+        setRutasOptimizadas([]); // Limpia las rutas si no hay asignaciones
+        return;
+      }
 
-      for (const [vehiculoId, pedidoIds] of Object.entries(assignments)) {
+      // Usa Object.entries y map para una iteración más limpia y Promise.all para concurrencia
+      const routePromises = Object.entries(assignments).map(async ([vehiculoId, pedidoIds]) => {
         const pedidos = pedidoIds.map(id => validOrders.find(p => p.id === id)).filter(Boolean);
         const puntos = [baseLngLat, ...pedidos.map(p => `${p.lng},${p.lat}`)];
-        if (puntos.length < 2) continue;
+
+        if (puntos.length < 2) return null; // Salta si no hay suficientes puntos para una ruta
 
         try {
           const res = await axios.get(`http://router.project-osrm.org/route/v1/driving/${puntos.join(';')}?overview=full&geometries=geojson`);
           const route = res.data.routes[0];
           const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
-          rutas.push({
+          return {
             vehiculoId,
             ruta: coords,
             duracion: route.duration,
             distancia: route.distance
-          });
+          };
         } catch (err) {
           console.error(`Error fetching route for vehicle ${vehiculoId}:`, err);
+          return null;
         }
-      }
+      });
 
-      setRutasOptimizadas(rutas);
+      const resolvedRutas = await Promise.all(routePromises);
+      setRutasOptimizadas(resolvedRutas.filter(Boolean)); // Filtra los nulos de las rutas fallidas
     };
 
     fetchRoutes();
-  }, [assignments, orders]);
+  }, [assignments, validOrders]); // Dependencias: assignments y validOrders (memoizado)
 
- // Reemplaza la sección del useEffect donde manejas 'ubicacion_conductor'
-useEffect(() => {
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
-  socketRef.current = io(socketUrl, {
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    timeout: 20000,
-  });
+ // Socket para ubicaciones en tiempo real
+ useEffect(() => {
+   const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
-  const socket = socketRef.current;
+   socketRef.current = io(socketUrl, {
+     transports: ['websocket', 'polling'],
+     reconnection: true,
+     reconnectionAttempts: 5,
+     reconnectionDelay: 1000,
+     timeout: 30000,
+   });
 
-  socket.on('connect', () => {
-    console.log('Socket conectado exitosamente');
-    setSocketError(null);
-  });
+   const socket = socketRef.current;
 
-  socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err.message);
-    setSocketError(`Connection error: ${err.message}`);
-  });
+   socket.on('connect', () => {
+     console.log('🔌 Socket conectado exitosamente');
+     setSocketError(null);
+   });
 
-  socket.on('ubicacion_conductor', (data) => {
-    console.log('Datos recibidos del socket:', data); // Debug
-    console.log('Drivers disponibles:', drivers); // Debug
+   socket.on('connect_error', (err) => {
+     console.error('❌ Socket connection error:', err.message);
+     setSocketError(`Connection error: ${err.message}`);
+   });
 
-    if (!data || isNaN(data.lat) || isNaN(data.lng)) {
-      console.warn('Datos de ubicación inválidos:', data);
-      return;
-    }
+   socket.on('ubicacion_conductor', (data) => {
+     console.log('📍 Datos recibidos del socket:', data);
 
-    // Buscar conductor asociado por DNI (asegúrate de comparar como string)
-    const conductor = drivers.find(d => String(d.dni) === String(data.dni));
-    console.log('Conductor encontrado:', conductor); // Debug
+     if (!data || isNaN(data.lat) || isNaN(data.lng)) {
+       console.warn('⚠️ Datos de ubicación inválidos:', data);
+       return;
+     }
 
-    setUbicaciones(prev => {
-      const otras = prev.filter(u => u.dni !== data.dni);
-      const nuevaUbicacion = {
-        dni: data.dni,
-        nombre: conductor ? `${conductor.nombre} ${conductor.apellido}` : `Conductor ${data.dni}`,
-        lat: parseFloat(data.lat),
-        lng: parseFloat(data.lng),
-        timestamp: data.timestamp || new Date().toISOString()
-      };
-      
-      console.log('Nueva ubicación agregada:', nuevaUbicacion); // Debug
-      return [...otras, nuevaUbicacion];
-    });
-  });
+     // Buscar conductor asociado por DNI
+     const conductor = drivers.find(d => String(d.dni) === String(data.dni));
 
-  socket.on('disconnect', (reason) => {
-    console.log('Socket disconnected:', reason);
-  });
+     setUbicaciones(prev => {
+       const otras = prev.filter(u => u.dni !== data.dni);
+       const nuevaUbicacion = {
+         dni: data.dni,
+         nombre: conductor ? `${conductor.nombre} ${conductor.apellido}` : `Conductor ${data.dni}`,
+         lat: parseFloat(data.lat),
+         lng: parseFloat(data.lng),
+         timestamp: data.timestamp || new Date().toISOString()
+       };
+       
+       return [...otras, nuevaUbicacion];
+     });
+   });
 
-  return () => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-  };
-}, [drivers]); // IMPORTANTE: Agregar 'drivers' como dependencia
+   socket.on('disconnect', (reason) => {
+     console.log('🔌 Socket disconnected:', reason);
+   });
 
-// También actualiza el Popup para mostrar mejor la información
-{ubicaciones.map(ubicacion => (
-  <Marker
-    key={`${ubicacion.dni}-${ubicacion.timestamp}`}
-    position={[ubicacion.lat, ubicacion.lng]}
-    icon={iconConductor}
-  >
-    <Popup>
-      <div style={{ textAlign: 'center' }}>
-        <b>🚗 {ubicacion.nombre}</b><br />
-        <small>DNI: {ubicacion.dni}</small><br />
-        <small>Última actualización: {new Date(ubicacion.timestamp).toLocaleTimeString()}</small>
-      </div>
-    </Popup>
-  </Marker>
-))}
+   return () => {
+     if (socketRef.current) {
+       socketRef.current.disconnect();
+       socketRef.current = null;
+     }
+   };
+ }, [drivers]);
 
   return (
     <div style={{ 
@@ -238,36 +258,82 @@ useEffect(() => {
       minHeight: '100vh',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
-      {/* Header moderno */}
+      {/* Header moderno con indicador de actualización */}
       <div style={{
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #e2e8f0',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         padding: '1.5rem'
       }}>
-        <h1 style={{
-          fontSize: '1.875rem',
-          fontWeight: '700',
-          color: '#1a202c',
-          margin: '0 0 0.25rem 0'
-        }}>
-          Mapa de Entregas
-        </h1>
-        <p style={{
-          fontSize: '0.875rem',
-          color: '#64748b',
-          margin: 0
-        }}>
-          Conductores en tiempo real y rutas optimizadas
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{
+              fontSize: '1.875rem',
+              fontWeight: '700',
+              color: '#1a202c',
+              margin: '0 0 0.25rem 0'
+            }}>
+              Mapa de Entregas
+            </h1>
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#64748b',
+              margin: 0
+            }}>
+              Conductores en tiempo real y rutas optimizadas
+            </p>
+          </div>
+          
+          {/* Indicador de actualización */}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.25rem'
+            }}>
+              <div style={{
+                width: '0.5rem',
+                height: '0.5rem',
+                borderRadius: '50%',
+                backgroundColor: isRefreshing ? '#f59e0b' : '#10b981',
+                animation: isRefreshing ? 'pulse 2s infinite' : 'none'
+              }}></div>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                color: isRefreshing ? '#f59e0b' : '#10b981'
+              }}>
+                {isRefreshing ? 'Actualizando...' : 'En línea'}
+              </span>
+            </div>
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#64748b',
+              margin: 0
+            }}>
+              Última actualización: {lastUpdate.toLocaleTimeString()}
+            </p>
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#64748b',
+              margin: 0
+            }}>
+              Próxima en: 30s
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Checkbox para mostrar/ocultar heatmap */}
+      {/* Controles */}
       <div style={{
         padding: '1.5rem',
         backgroundColor: '#ffffff',
         marginBottom: '1rem',
-        borderBottom: '1px solid #e2e8f0'
+        borderBottom: '1px solid #e2e8f0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
         <label style={{
           display: 'flex',
@@ -289,8 +355,36 @@ useEffect(() => {
               accentColor: '#3b82f6'
             }}
           />
-          Mostrar mapa de calor de zonas problematicas (beta)
+          Mostrar mapa de calor de zonas problemáticas (beta)
         </label>
+
+        {/* Botón de actualización manual */}
+        <button
+          onClick={refreshData}
+          disabled={isRefreshing}
+          style={{
+            backgroundColor: isRefreshing ? '#9ca3af' : '#3b82f6',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            padding: '0.5rem 1rem',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            cursor: isRefreshing ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'background-color 0.2s'
+          }}
+        >
+          <span style={{
+            animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+            display: 'inline-block'
+          }}>
+            🔄
+          </span>
+          {isRefreshing ? 'Actualizando...' : 'Actualizar ahora'}
+        </button>
       </div>
 
       {socketError && (
@@ -305,6 +399,66 @@ useEffect(() => {
           <strong>Advertencia:</strong> {socketError} - Real-time locations are not available.
         </div>
       )}
+
+      {/* Estadísticas rápidas */}
+      <div style={{
+        margin: '0 1.5rem 1rem',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1rem'
+      }}>
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#3b82f6' }}>
+            {orders.filter(o => o.estado === 'pendiente').length}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Pendientes</div>
+        </div>
+        
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f59e0b' }}>
+            {orders.filter(o => o.estado === 'en_camino').length}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>En Camino</div>
+        </div>
+        
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>
+            {orders.filter(o => o.estado === 'entregado').length}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Entregados</div>
+        </div>
+        
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>
+            {orders.filter(o => o.estado === 'cancelado').length}
+          </div>
+          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Cancelados</div>
+        </div>
+      </div>
 
       {/* Mapa con contenedor moderno */}
       <div style={{
@@ -336,9 +490,18 @@ useEffect(() => {
             {validOrders.map(p => (
               <Marker key={p.id} position={p.position} icon={getIconByEstado(p.estado)}>
                 <Popup>
-                  <b>{p.cliente_nombre || 'Unknown Client'}</b><br />
-                  {p.direccion}<br />
-                  Status: <b>{p.estado}</b>
+                  <div style={{ textAlign: 'center' }}>
+                    <b>{p.cliente_nombre || 'Cliente Desconocido'}</b><br />
+                    📍 {p.direccion}<br />
+                    📦 Estado: <b style={{ 
+                      color: p.estado === 'entregado' ? '#10b981' : 
+                             p.estado === 'en_camino' ? '#f59e0b' : 
+                             p.estado === 'cancelado' ? '#ef4444' : '#3b82f6'
+                    }}>
+                      {p.estado}
+                    </b><br />
+                    <small>Última actualización: {lastUpdate.toLocaleTimeString()}</small>
+                  </div>
                 </Popup>
               </Marker>
             ))}
@@ -350,10 +513,12 @@ useEffect(() => {
                 icon={iconConductor}
               >
                 <Popup>
-  <b>🚗 {ubicacion.nombre}</b><br />
-  Última actualización: {new Date(ubicacion.timestamp).toLocaleTimeString()}
-</Popup>
-
+                  <div style={{ textAlign: 'center' }}>
+                    <b>🚗 {ubicacion.nombre}</b><br />
+                    <small>DNI: {ubicacion.dni}</small><br />
+                    <small>Última ubicación: {new Date(ubicacion.timestamp).toLocaleTimeString()}</small>
+                  </div>
+                </Popup>
               </Marker>
             ))}
 
@@ -374,7 +539,6 @@ useEffect(() => {
           </MapContainer>
         </div>
       </div>
-
       {/* Assignment Summary con estilos modernos */}
       <div style={{
         margin: '2rem 1.5rem',
@@ -387,23 +551,36 @@ useEffect(() => {
         <div style={{
           backgroundColor: '#f8fafc',
           borderBottom: '1px solid #e2e8f0',
-          padding: '1.5rem'
+          padding: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <h3 style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#1a202c',
-            margin: '0 0 0.25rem 0'
-          }}>
-            Resumen de Asignaciones
-          </h3>
-          <p style={{
-            fontSize: '0.875rem',
+          <div>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#1a202c',
+              margin: '0 0 0.25rem 0'
+            }}>
+              Resumen de Asignaciones
+            </h3>
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#64748b',
+              margin: 0
+            }}>
+              Estado actual de vehículos y rutas
+            </p>
+          </div>
+          <div style={{
+            fontSize: '0.75rem',
             color: '#64748b',
-            margin: 0
+            textAlign: 'right'
           }}>
-            Estado actual de vehículos y rutas
-          </p>
+            Auto-actualización: cada 20s<br />
+            {isRefreshing && <span style={{ color: '#f59e0b' }}>🔄 Actualizando...</span>}
+          </div>
         </div>
 
         <div style={{ padding: '1.5rem' }}>
@@ -446,7 +623,7 @@ useEffect(() => {
                       color: '#1a202c',
                       margin: 0
                     }}>
-                      🚗 Vehicle #{vehiculoId}
+                      🚗 Vehículo #{vehiculoId}
                     </h5>
                   </div>
                   <span style={{
@@ -457,7 +634,7 @@ useEffect(() => {
                     fontSize: '0.75rem',
                     fontWeight: '500'
                   }}>
-                    {pedidoIds.length} orders
+                    {pedidoIds.length} pedidos
                   </span>
                 </div>
 
@@ -468,14 +645,14 @@ useEffect(() => {
                     fontSize: '0.875rem',
                     margin: '0 0 0.75rem 0'
                   }}>
-                    Type: <strong>{vehiculo?.tipo || 'N/A'}</strong> | License Plate: <strong>{vehiculo?.patente || 'N/A'}</strong>
+                    Tipo: <strong>{vehiculo?.tipo || 'N/A'}</strong> | Patente: <strong>{vehiculo?.patente || 'N/A'}</strong>
                   </p>
                   <p style={{
                     color: '#4b5563',
                     fontSize: '0.875rem',
                     margin: '0 0 1rem 0'
                   }}>
-                    👨‍💼 Driver: <strong>{conductor ? `${conductor.nombre} ${conductor.apellido}` : 'Unassigned'}</strong>
+                    👨‍💼 Conductor: <strong>{conductor ? `${conductor.nombre} ${conductor.apellido}` : 'Sin asignar'}</strong>
                   </p>
                   
                   {rutaData && (
@@ -508,7 +685,7 @@ useEffect(() => {
                     </div>
                   )}
 
-                  {/* Lista de pedidos */}
+                  {/* Lista de pedidos con estados actualizados */}
                   <div>
                     <div style={{
                       fontSize: '0.75rem',
@@ -540,7 +717,7 @@ useEffect(() => {
                           marginRight: '0.75rem',
                           flexShrink: 0
                         }}></div>
-                        🚩 Starting Point: Base Triunvirato y Tronador
+                        🚩 Punto de partida: Base Triunvirato y Tronador
                       </li>
                       {pedidos.map(p => (
                         <li key={p.id} style={{
@@ -553,12 +730,24 @@ useEffect(() => {
                           <div style={{
                             width: '0.5rem',
                             height: '0.5rem',
-                            backgroundColor: '#3b82f6',
+                            backgroundColor: p.estado === 'entregado' ? '#10b981' : 
+                                           p.estado === 'en_camino' ? '#f59e0b' : 
+                                           p.estado === 'cancelado' ? '#ef4444' : '#3b82f6',
                             borderRadius: '50%',
                             marginRight: '0.75rem',
                             flexShrink: 0
                           }}></div>
-                          📦 Order #{p.id} – {p.direccion}
+                          📦 Pedido #{p.id} – {p.direccion} 
+                          <span style={{
+                            marginLeft: '0.5rem',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            color: p.estado === 'entregado' ? '#10b981' : 
+                                   p.estado === 'en_camino' ? '#f59e0b' : 
+                                   p.estado === 'cancelado' ? '#ef4444' : '#3b82f6'
+                          }}>
+                            ({p.estado})
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -595,6 +784,27 @@ useEffect(() => {
           )}
         </div>
       </div>
+
+      {/* Estilos CSS para animaciones */}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+        
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 };

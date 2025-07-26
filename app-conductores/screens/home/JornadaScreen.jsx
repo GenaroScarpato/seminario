@@ -47,7 +47,7 @@ const JornadaScreen = () => {
         return;
       }
 
-      const s = io('http://192.168.1.88:3000', { transports: ['websocket'] });
+      const s = io('http://192.168.0.231:3000', { transports: ['websocket'] });
       setSocket(s);
       setActivo(true);
 

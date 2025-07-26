@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getItem } from '../utils/storage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.88:3000/api',
+  baseURL: 'http://192.168.0.231:3000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

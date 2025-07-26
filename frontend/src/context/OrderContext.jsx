@@ -6,22 +6,27 @@ export const OrderContext = createContext();
 export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
-        const data = await res.json();
+    const fetchOrders = React.useCallback(async () => { // <--- ENVUELTO EN useCallback
+    try {
+      const res = await fetch(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
+      const data = await res.json();
+      setOrders(data);
+      console.log('✅ Pedidos actualizados:', data.length);
+    } catch (error) {
+      console.error('Error cargando pedidos:', error);
+    }
+  }, []); // <--- Dependencia vacía para que sea estable
 
-        setOrders(data);
-      } catch (error) {
-        console.error('Error cargando pedidos:', error);
-      }
-    };
-    fetchOrders();
+  useEffect(() => {
+    fetchOrders(); // Llamar la función en el useEffect
   }, []);
 
   return (
-    <OrderContext.Provider value={{ orders, setOrders }}>
+    <OrderContext.Provider value={{ 
+      orders, 
+      setOrders,
+     fetchOrders // <-- aquí
+    }}>
       {children}
     </OrderContext.Provider>
   );

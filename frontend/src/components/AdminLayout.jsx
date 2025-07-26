@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { OrderContext } from '../context/OrderContext';
 import { VehicleContext } from '../context/VehicleContext';
@@ -19,12 +19,8 @@ const AdminLayout = () => {
   const [mapState, setMapState] = useState(initialMapState);
   const [webSocketState, setWebSocketState] = useState(initialWebSocketState);
 
-  useEffect(() => {
-    fetchPedidos();
-    fetchVehiculos();
-  }, []);
-
-  const fetchPedidos = async () => {
+  // Definir las funciones de fetch con useCallback
+  const fetchOrders = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.PEDIDOS.ALL}`);
       if (!res.ok) throw new Error('Error en la respuesta de pedidos');
@@ -33,9 +29,9 @@ const AdminLayout = () => {
     } catch (err) {
       console.error('Error al cargar pedidos', err);
     }
-  };
+  }, []);
 
-  const fetchVehiculos = async () => {
+  const fetchVehicles = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
       if (!res.ok) throw new Error('Error en la respuesta de vehículos');
@@ -44,7 +40,13 @@ const AdminLayout = () => {
     } catch (err) {
       console.error('Error al cargar vehículos', err);
     }
-  };
+  }, []);
+
+  // Cargar datos al inicio
+  useEffect(() => {
+    fetchOrders();
+    fetchVehicles();
+  }, [fetchOrders, fetchVehicles]);
 
   const menuItems = [
     { path: '/admin/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard' },
@@ -57,8 +59,8 @@ const AdminLayout = () => {
 
   return (
     <ReportProvider>
-      <OrderContext.Provider value={{ orders, setOrders }}>
-        <VehicleContext.Provider value={{ vehicles, setVehicles }}>
+      <OrderContext.Provider value={{ orders, setOrders, fetchOrders }}>
+        <VehicleContext.Provider value={{ vehicles, setVehicles, fetchVehicles }}>
           <DriverProvider>
             <MapContext.Provider value={{ mapState, setMapState }}>
               <WebSocketContext.Provider value={{ webSocketState, setWebSocketState }}>
@@ -73,21 +75,14 @@ const AdminLayout = () => {
 
                     <nav className={styles.navMenu}>
                       {menuItems.map((item, index) => (
-                        <div 
-                          key={index} 
-                          className={styles.navItem}
-                        >
+                        <div key={index} className={styles.navItem}>
                           <Link
                             to={item.path}
-                            className={`${styles.navLink} ${
-                              location.pathname === item.path ? 'active' : ''
-                            }`}
+                            className={`${styles.navLink} ${location.pathname === item.path ? 'active' : ''}`}
                           >
                             <span className={styles.navIcon}>{item.icon}</span>
                             <span>{item.label}</span>
-                            {location.pathname === item.path && (
-                              <span className={styles.activeDot} />
-                            )}
+                            {location.pathname === item.path && <span className={styles.activeDot} />}
                           </Link>
                         </div>
                       ))}

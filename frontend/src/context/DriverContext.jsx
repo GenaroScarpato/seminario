@@ -8,7 +8,7 @@ export const DriverProvider = ({ children }) => {
   const [vehicles, setVehicles] = useState([]);
 
   // Fetch drivers
-  const fetchDrivers = async () => {
+   const fetchDrivers = React.useCallback(async () => { // <--- ENVUELTO EN useCallback
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.CONDUCTORES.ALL}`);
       const data = await res.json();
@@ -16,10 +16,10 @@ export const DriverProvider = ({ children }) => {
     } catch (error) {
       console.error('Error cargando conductores:', error);
     }
-  };
+  }, []); // <--- Dependencia vacía
 
   // Fetch vehicles
-  const fetchVehicles = async () => {
+  const fetchVehicles = React.useCallback(async () => { // <--- ENVUELTO EN useCallback
     try {
       const res = await fetch(`${API_BASE_URL}${API_ROUTES.VEHICULOS.ALL}`);
       const data = await res.json();
@@ -27,7 +27,7 @@ export const DriverProvider = ({ children }) => {
     } catch (error) {
       console.error('Error cargando vehículos:', error);
     }
-  };
+  }, []); // <--- Dependencia vacía
 
   useEffect(() => {
     fetchDrivers();
