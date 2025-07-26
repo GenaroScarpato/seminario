@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { getItem } from '../utils/storage';
+import Constants from 'expo-constants';
+
+const { API_URL } = Constants.expoConfig.extra;
 
 const api = axios.create({
-  baseURL: 'http://192.168.0.231:3000/api',
+  baseURL:`${API_URL}/api`,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

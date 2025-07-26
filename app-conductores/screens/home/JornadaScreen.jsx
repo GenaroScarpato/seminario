@@ -7,7 +7,9 @@ import { io } from 'socket.io-client';
 import api from '../../services/api';
 import { Linking } from 'react-native';
 import { fetchPedidos } from '../../slices/ordersSlice';
+import Constants from 'expo-constants';
 
+const { API_URL } = Constants.expoConfig.extra;
 const JornadaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -47,7 +49,7 @@ const JornadaScreen = () => {
         return;
       }
 
-      const s = io('http://192.168.0.231:3000', { transports: ['websocket'] });
+      const s = io(`${API_URL}`, { transports: ['websocket'] });
       setSocket(s);
       setActivo(true);
 

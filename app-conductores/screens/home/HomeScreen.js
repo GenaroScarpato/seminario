@@ -8,7 +8,9 @@ import { Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { io } from 'socket.io-client';
 import { fetchPedidos } from '../../slices/ordersSlice';
+import Constants from 'expo-constants';
 
+const { API_URL } = Constants.expoConfig.extra;
 const abrirWaze = (direccion) => {
   const direccionEncoded = encodeURIComponent(direccion);
   const url = `https://waze.com/ul?q=${direccionEncoded}`;
@@ -42,7 +44,7 @@ const HomeScreen = () => {
       return Alert.alert('Permiso denegado', 'Necesitamos acceso a tu ubicación');
     }
 
-    const s = io('http://192.168.0.231:3000', { transports: ['websocket'] });
+    const s = io(`${API_URL}`, { transports: ['websocket'] });
     setSocket(s);
     setActivo(true);
 
