@@ -5,12 +5,13 @@ import L from 'leaflet';
 import 'leaflet.heat';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-
+import {API_BASE_URL ,API_ROUTES } from '../../config/api.js';
 import { OrderContext } from '../../context/OrderContext.jsx';
 import { MapContext } from '../../context/MapContext.jsx';
 import { VehicleContext } from '../../context/VehicleContext.jsx';
 import { DriverContext } from '../../context/DriverContext.jsx';
 import { ReportContext } from '../../context/ReportContext.jsx';
+import HeatmapZonasLayer from './HeatmapLayer'; // ajustá la ruta según tu estructura
 
 const basePosition = [-34.58402190, -58.46702480];
 const baseLngLat = `${basePosition[1]},${basePosition[0]}`;
@@ -20,6 +21,7 @@ const iconPendiente = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/
 const iconEntregado = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/190/190411.png', iconSize: [30, 30] });
 const iconCancelado = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1828/1828843.png', iconSize: [30, 30] });
 const iconEnCamino = new L.Icon({ iconUrl: '/image.png', iconSize: [30, 30] });
+
 
 const getIconByEstado = (estado) => {
   switch (estado) {
@@ -105,9 +107,10 @@ const Mapa = () => {
   const [rutasOptimizadas, setRutasOptimizadas] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [socketError, setSocketError] = useState(null);
-  const [showHeatmap, setShowHeatmap] = useState(true); // Valor inicial a true para mostrar el heatmap
+  const [showHeatmap, setShowHeatmap] = useState(false); // Valor inicial a true para mostrar el heatmap
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+const [zonas, setZonas] = useState([]);
 
   const socketRef = useRef(null);
   const refreshIntervalRef = useRef(null);
@@ -133,7 +136,6 @@ const Mapa = () => {
       if (fetchDrivers) promises.push(fetchDrivers()); // Asegúrate que fetchDrivers es también un useCallback en DriverContext
       await Promise.all(promises);
       setLastUpdate(new Date());
-      console.log('✅ Datos actualizados correctamente');
     } catch (error) {
       console.error('❌ Error al actualizar datos:', error);
     } finally {
@@ -250,7 +252,20 @@ const Mapa = () => {
      }
    };
  }, [drivers]);
+useEffect(() => {
+  const fetchZonas = async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}${API_ROUTES.TRAFICO.ZONAS}`);
+      setZonas(data);
+      console.log('Zonas cargadas:', data);
+    } catch (error) {
+      console.log('Error al cargar zonas de tráfico:', error);
+      console.error('Error al cargar zonas de tráfico:', error);
+    }
+  };
 
+  fetchZonas();
+}, []);
   return (
     <div style={{ 
       width: '100%', 
@@ -536,6 +551,10 @@ const Mapa = () => {
                 />
               );
             })}
+       
+
+{showHeatmap && <HeatmapZonasLayer zonas={zonas} />}
+
           </MapContainer>
         </div>
       </div>

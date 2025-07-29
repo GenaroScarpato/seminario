@@ -25,5 +25,9 @@ export const API_ROUTES = {
   REPORTES: {
     ALL: '/api/reportes',
     CREATE: '/api/reportes',
-    DELETE: '/api/reportes/:id'}
+    DELETE: '/api/reportes/:id'
+  },
+  TRAFICO: {
+    ZONAS: '/api/trafico/zonas'
+  }
 };

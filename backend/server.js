@@ -80,11 +80,11 @@ class Server {
     cargarRutas() {
         this.app.use("/api/vehiculos", require('./routes/vehiculos'));
         this.app.use("/api/pedidos", require('./routes/pedidos'));
-        this.app.use("/api/rutas", require('./routes/rutas'));
         this.app.use("/api/conductores", require('./routes/conductores'));
         this.app.use("/api/auth", require('./routes/auth'));
         this.app.use("/api", require('./routes/asignacion'));
         this.app.use("/api/reportes", require('./routes/reportes'));
+        this.app.use("/api/trafico", require('./routes/trafico'));
 
         console.log('🛣️ Rutas cargadas');
     }
