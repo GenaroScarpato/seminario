@@ -57,13 +57,15 @@ const LoginScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1542281286-9e0a16bb7366' }}
-        style={styles.background}
-        blurRadius={2}
-      >
+        <ImageBackground
+  source={require('../../assets/images/trucks.png')}
+  style={styles.background}
+  blurRadius={2}
+  resizeMode="cover" // <- Esto es importante
+>
+
         <BlurView intensity={60} tint="light" style={styles.card}>
-          <Text style={styles.title}>🚛 Bienvenido Conductor</Text>
+          <Text style={styles.title}>🚛 Bienvenido Chofer</Text>
 
           <TextInput
             style={styles.input}
@@ -102,23 +104,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  background: {
-    flex: 1,
-    justifyContent: 'center',
-  },
+ background: {
+  flex: 1,
+  width: '100%',
+  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  
+},
+
   card: {
-    marginHorizontal: 25,
-    padding: 30,
-    borderRadius: 20,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
+  width: '90%',         // ✅ Se adapta a pantalla
+  maxWidth: 400,        // ✅ En web no se pasa de este ancho
+  padding: 30,
+  borderRadius: 20,
+  alignItems: 'center',
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 10 },
+  shadowOpacity: 0.3,
+  shadowRadius: 20,
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.2)',
+},
+
+
  title: {
   fontSize: 28,
   fontWeight: 'bold',
@@ -129,18 +139,19 @@ const styles = StyleSheet.create({
   textShadowOffset: { width: 0, height: 2 },
   textShadowRadius: 4,
 },
-  input: {
-    width: '100%',
-    height: 50,
-    marginBottom: 18,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)', // más oscuro para mayor contraste
-  color: '#fefefe', // texto más blanco
-  },
+ input: {
+  width: '100%',
+  height: 55, // ✅ Más alto
+  marginBottom: 18,
+  borderRadius: 12,
+  paddingHorizontal: 20, // ✅ Más espacio
+  fontSize: 18, // ✅ Más grande para leer mejor
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.2)',
+  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  color: '#fefefe',
+},
+
   loginButton: {
     width: '100%',
     backgroundColor: '#00D1A0',

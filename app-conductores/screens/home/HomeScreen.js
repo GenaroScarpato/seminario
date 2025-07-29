@@ -1,6 +1,6 @@
 // al inicio
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { clearSession } from '../../slices/authSlice';
@@ -11,6 +11,8 @@ import { fetchPedidos } from '../../slices/ordersSlice';
 import Constants from 'expo-constants';
 
 const { API_URL } = Constants.expoConfig.extra;
+const screenWidth = Dimensions.get('window').width;
+
 const abrirWaze = (direccion) => {
   const direccionEncoded = encodeURIComponent(direccion);
   const url = `https://waze.com/ul?q=${direccionEncoded}`;
@@ -87,35 +89,48 @@ const HomeScreen = () => {
     
     return (
       <TouchableOpacity 
-        style={styles.pedidoCard}
+        style={[styles.pedidoCard, screenWidth > 768 && styles.pedidoCardWide]}
         onPress={() => navigation.navigate('DeliveryDetail', { pedido: item })}
         activeOpacity={0.7}
       >
-        <View style={styles.pedidoHeader}>
-          <View style={styles.pedidoIconContainer}>
-            <Text style={styles.pedidoIcon}>📦</Text>
+        <View style={styles.pedidoContent}>
+          {/* Icono y estado - siempre visibles */}
+          <View style={styles.pedidoIconSection}>
+            <View style={styles.pedidoIconContainer}>
+              <Text style={styles.pedidoIcon}>📦</Text>
+            </View>
+            <View style={[styles.estadoBadge, { backgroundColor: estadoStyle.backgroundColor }]}>
+              <Text style={[styles.estadoText, { color: estadoStyle.color }]}>
+                {item.estado.replace('_', ' ').toUpperCase()}
+              </Text>
+            </View>
           </View>
-          <View style={styles.pedidoMainInfo}>
+          
+          {/* Información principal */}
+          <View style={styles.pedidoMainContent}>
             <Text style={styles.pedidoDireccion} numberOfLines={2}>
               {item.direccion}
             </Text>
-            <View style={styles.pedidoDetailsRow}>
-              <View style={styles.pedidoDetail}>
-                <Text style={styles.pedidoDetailLabel}>Vol:</Text>
-                <Text style={styles.pedidoDetailValue}>{item.volumen}</Text>
+            
+            {/* Detalles en fila horizontal */}
+            <View style={styles.pedidoDetailsContainer}>
+              <View style={styles.pedidoDetailsRow}>
+                <View style={styles.pedidoDetail}>
+                  <Text style={styles.pedidoDetailLabel}>Vol:</Text>
+                  <Text style={styles.pedidoDetailValue}>{item.volumen}</Text>
+                </View>
+                <View style={styles.pedidoDetail}>
+                  <Text style={styles.pedidoDetailLabel}>Peso:</Text>
+                  <Text style={styles.pedidoDetailValue}>{item.peso}</Text>
+                </View>
               </View>
-              <View style={styles.pedidoDetail}>
-                <Text style={styles.pedidoDetailLabel}>Peso:</Text>
-                <Text style={styles.pedidoDetailValue}>{item.peso}</Text>
+              
+              {/* ID del pedido */}
+              <View style={styles.pedidoIdContainer}>
+                <Text style={styles.pedidoId}>#{item.id}</Text>
               </View>
             </View>
           </View>
-        </View>
-        
-        <View style={[styles.estadoBadge, { backgroundColor: estadoStyle.backgroundColor }]}>
-          <Text style={[styles.estadoText, { color: estadoStyle.color }]}>
-            {item.estado.replace('_', ' ').toUpperCase()}
-          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -204,6 +219,8 @@ const HomeScreen = () => {
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
+            numColumns={screenWidth > 768 ? 2 : 1}
+            key={screenWidth > 768 ? 'wide' : 'narrow'}
           />
         )}
       </View>
@@ -212,8 +229,7 @@ const HomeScreen = () => {
       {!activo ? (
         <TouchableOpacity
           style={styles.primaryButton}
-onPress={() => navigation.navigate('JornadaScreen', { pedidos, user })}
-
+          onPress={() => navigation.navigate('JornadaScreen', { pedidos, user })}
           activeOpacity={0.8}
         >
           <Text style={styles.primaryButtonIcon}>🚀</Text>
@@ -237,7 +253,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F8E9',
-    paddingTop: 50,
+    paddingTop: 40,
   },
   centerContainer: {
     justifyContent: 'center',
@@ -250,17 +266,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 20,
+    marginBottom: 12,
+    borderRadius: 16,
     shadowColor: '#2E7D32',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   welcomeContainer: {
     flex: 1,
@@ -272,7 +288,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
     color: '#1B5E20',
     marginTop: 2,
@@ -301,46 +317,46 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     shadowColor: '#2E7D32',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   statIcon: {
-    fontSize: 20,
+    fontSize: 16,
   },
   statNumber: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
     color: '#1B5E20',
-    lineHeight: 32,
+    lineHeight: 26,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#66BB6A',
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
 
   // Orders Section
@@ -348,24 +364,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    borderRadius: 20,
+    marginBottom: 12,
+    borderRadius: 16,
+    paddingBottom: 8,
     shadowColor: '#2E7D32',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   ordersSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 24,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F8E9',
   },
   ordersSectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1B5E20',
   },
@@ -383,79 +401,105 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Pedido Cards
   listContainer: {
-    padding: 16,
-    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
+
+  // Pedido Card - Nuevo diseño más compacto
   pedidoCard: {
     backgroundColor: '#FAFAFA',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    borderLeftWidth: 4,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    marginHorizontal: 4,
+    borderLeftWidth: 3,
     borderLeftColor: '#4CAF50',
     shadowColor: '#2E7D32',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  pedidoHeader: {
+  pedidoCardWide: {
+    flex: 1,
+    maxWidth: '48%',
+  },
+  pedidoContent: {
+    flexDirection: 'column',
+  },
+  pedidoIconSection: {
     flexDirection: 'row',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   pedidoIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   pedidoIcon: {
-    fontSize: 20,
+    fontSize: 14,
   },
-  pedidoMainInfo: {
+  pedidoMainContent: {
     flex: 1,
   },
   pedidoDireccion: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1B5E20',
-    lineHeight: 22,
+    lineHeight: 18,
     marginBottom: 8,
+  },
+  pedidoDetailsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
   pedidoDetailsRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 16,
   },
   pedidoDetail: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   pedidoDetailLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#66BB6A',
     fontWeight: '600',
     marginRight: 4,
   },
   pedidoDetailValue: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#2E7D32',
     fontWeight: '700',
   },
+  pedidoIdContainer: {
+    alignItems: 'flex-end',
+  },
+  pedidoId: {
+    fontSize: 11,
+    color: '#9E9E9E',
+    fontWeight: '600',
+  },
+
+  // Estado Badge
   estadoBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
   },
   estadoText: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
   // Loading States
@@ -535,28 +579,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#388E3C',
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 20,
-    paddingVertical: 20,
-    borderRadius: 16,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    marginTop: 12,
+    marginBottom: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: '#388E3C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
   primaryButtonIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 18,
+    marginRight: 8,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
+
   navigationButton: {
     flexDirection: 'row',
     alignItems: 'center',

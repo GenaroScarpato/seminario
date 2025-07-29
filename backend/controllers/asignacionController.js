@@ -22,57 +22,59 @@ const asignarRutas = async (req, res) => {
   const client = await req.pool.connect();
 
   try {
-    const { asignaciones } = req.body;
+    const { asignaciones } = req.body; // { [vehiculoId]: [pedidoId, pedidoId, ...], ... }
 
-    if (!asignaciones || typeof asignaciones !== 'object') {
+    if (!asignaciones || typeof asignaciones !== 'object' || Object.keys(asignaciones).length === 0) {
       return res.status(400).json({ msg: 'Faltan asignaciones válidas en el cuerpo' });
     }
 
     await client.query('BEGIN');
 
-    // Borramos asignaciones anteriores
+    // Limpio todas las asignaciones previas (ajusta si querés conservar historial)
     await client.query('DELETE FROM asignaciones');
 
-    // Recorremos objeto asignaciones { vehiculoId: [pedidoId, pedidoId,...], ... }
-    for (const vehiculoIdStr in asignaciones) {
-      const pedidoIds = asignaciones[vehiculoIdStr];
-      const vehiculoId = parseInt(vehiculoIdStr);
+    for (const [vehiculoIdStr, pedidoIds] of Object.entries(asignaciones)) {
+      const vehiculoId = Number(vehiculoIdStr);
+      if (!Array.isArray(pedidoIds) || pedidoIds.length === 0) continue;
 
-      if (!Array.isArray(pedidoIds)) continue;
-
-      // Buscamos conductor_id desde tabla conductores con vehiculo_id
+      // Busco el conductor asociado al vehículo
       const { rows } = await client.query(
-        'SELECT id as conductor_id FROM conductores WHERE vehiculo_id = $1',
+        'SELECT id AS conductor_id FROM conductores WHERE vehiculo_id = $1',
         [vehiculoId]
       );
-      const conductorId = rows.length > 0 ? rows[0].conductor_id : null;
 
-      if (!conductorId) {
-        console.warn(`Vehículo ${vehiculoId} no tiene conductor asignado, saltando`);
+      if (rows.length === 0) {
+        console.warn(`Vehículo ${vehiculoId} no tiene conductor asignado, se omite`);
         continue;
       }
 
-      // Insertar asignaciones para cada pedido
-      for (const pedidoId of pedidoIds) {
+      const conductorId = rows[0].conductor_id;
+
+      // Inserto cada pedido con su índice de orden
+      for (let i = 0; i < pedidoIds.length; i++) {
+        const pedidoId = pedidoIds[i];
+
         await client.query(
-          `INSERT INTO asignaciones (pedido_id, vehiculo_id, conductor_id, estado, created_at, updated_at)
-           VALUES ($1, $2, $3, 'asignado', NOW(), NOW())`,
-          [pedidoId, vehiculoId, conductorId]
+          `INSERT INTO asignaciones 
+            (pedido_id, vehiculo_id, conductor_id, estado, orden, created_at, updated_at)
+           VALUES ($1, $2, $3, 'asignado', $4, NOW(), NOW())`,
+          [pedidoId, vehiculoId, conductorId, i]
         );
       }
     }
 
     await client.query('COMMIT');
-    res.json({ msg: 'Asignaciones guardadas correctamente.' });
+    return res.json({ msg: 'Asignaciones guardadas correctamente con orden.' });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error asignando rutas:', error);
-    handleError(res, error);
+    return handleError(res, error);
   } finally {
     client.release();
   }
 };
+
 
 const rutasAsignadas = async (req, res) => {
   const client = await req.pool.connect();
@@ -83,10 +85,11 @@ const rutasAsignadas = async (req, res) => {
 
   try {
     const { rows } = await client.query(`
-      SELECT p.* 
+      SELECT p.*
       FROM asignaciones a
       JOIN pedidos p ON p.id = a.pedido_id
       WHERE a.conductor_id = $1
+      ORDER BY a.orden ASC
     `, [conductorId]);
 
     res.json(rows);

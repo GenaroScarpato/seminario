@@ -19,38 +19,70 @@ const Dashboard = () => {
 
   const vehiculosDisponibles = vehicles.filter(v => v.estado === 'disponible' && v.conductor_id && v.conductor_estado === 'disponible');
   const ordersPending = orders.filter(p => p.estado === 'pendiente');
+const asignarPedidos = async () => {
+  setLoading(true);
+  setError(null);
+  setAssignments(null);
+  setUnassignedOrders([]);
 
-  const asignarPedidos = async () => {
-    setLoading(true); 
-    setError(null);
-    setAssignments(null);
-    setUnassignedOrders([]);
+  try {
+    // 1) Llamás al optimizador externo
+    const res = await axios.post('http://127.0.0.1:8000/asignar-pedidos', {
+      pedidos: ordersPending,
+      vehiculos: vehiculosDisponibles
+    });
 
-    try {
-      const res = await axios.post('http://127.0.0.1:8000/asignar-pedidos', {
-        pedidos: ordersPending,
-        vehiculos: vehiculosDisponibles
-      });
-      const asignaciones = res.data.asignaciones || {};
-      const no_asignados = res.data.no_asignados || [];
+    const asignaciones = res.data?.asignaciones ?? {};
+    const no_asignados = res.data?.no_asignados ?? [];
 
-      await axios.post(`${API_BASE_URL}${API_ROUTES.ASIGNACIONES.ASIGNAR_PEDIDOS}`, { asignaciones });
-
-      setAssignments(asignaciones);
-      setUnassignedOrders(no_asignados);
-      setMapState(prev => ({
-        ...prev,
-        assignments: res.data.asignaciones,
-        unassigned: res.data.no_asignados || []
-      }));
-
-    } catch (err) {
-      console.error(err);
-      setError('Error en la respuesta del servidor');
-    } finally {
-      setLoading(false);
+    // 2) Validar que asignaciones sea objeto y no esté vacío
+    if (
+      !asignaciones ||
+      typeof asignaciones !== 'object' ||
+      Object.keys(asignaciones).length === 0
+    ) {
+      throw new Error('El optimizador devolvió asignaciones vacías o inválidas');
     }
-  };
+
+    // 3) Asegurarse que cada valor sea array (por si acaso)
+    const asignacionesOrdenadas = {};
+    for (const vehiculoId in asignaciones) {
+      if (Array.isArray(asignaciones[vehiculoId])) {
+        asignacionesOrdenadas[vehiculoId] = asignaciones[vehiculoId];
+      } else {
+        asignacionesOrdenadas[vehiculoId] = [];
+      }
+    }
+
+    console.log('Asignaciones para enviar al backend:', asignacionesOrdenadas);
+
+    // 4) Mandás al backend con orden correcto
+    await axios.post(
+      `${API_BASE_URL}${API_ROUTES.ASIGNACIONES.ASIGNAR_PEDIDOS}`,
+      { asignaciones: asignacionesOrdenadas }
+    );
+
+    // 5) Actualizás estados locales
+    setAssignments(asignacionesOrdenadas);
+    setUnassignedOrders(no_asignados);
+    setMapState(prev => ({
+      ...prev,
+      assignments: asignacionesOrdenadas,
+      unassigned: no_asignados
+    }));
+
+  } catch (err) {
+    console.error(err?.response?.data || err);
+    setError(
+      err?.response?.data?.msg ||
+      err?.response?.data?.message ||
+      'Error en la respuesta del servidor'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const extraerDireccionCorta = (direccionCompleta) => {
     const partes = direccionCompleta.split(',');

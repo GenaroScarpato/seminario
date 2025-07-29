@@ -240,20 +240,20 @@ const JornadaScreen = () => {
 
   const getEstadoColor = (estado) => {
     switch (estado) {
-      case 'pendiente': return '#ffc107';
-      case 'en_camino': return '#17a2b8';
-      case 'entregado': return '#28a745';
-      case 'cancelado': return '#dc3545';
-      default: return '#6c757d';
+      case 'pendiente': return '#FFB800';
+      case 'en_camino': return '#000000';
+      case 'entregado': return '#00C851';
+      case 'cancelado': return '#FF4444';
+      default: return '#6B7280';
     }
   };
 
   const getEstadoText = (estado) => {
     switch (estado) {
-      case 'pendiente': return '⏳ Pendiente';
-      case 'en_camino': return '🚚 En camino';
-      case 'entregado': return '✅ Entregado';
-      case 'cancelado': return '❌ Cancelado';
+      case 'pendiente': return 'Pendiente';
+      case 'en_camino': return 'En camino';
+      case 'entregado': return 'Entregado';
+      case 'cancelado': return 'Cancelado';
       default: return estado;
     }
   };
@@ -261,12 +261,13 @@ const JornadaScreen = () => {
   if (!pedidoActual) {
     return (
       <View style={styles.container}>
+        <View style={styles.backgroundPattern} />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📦</Text>
-          <Text style={styles.emptyTitle}>No hay pedidos</Text>
-          <Text style={styles.emptyText}>No hay pedidos para esta jornada.</Text>
-          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={() => navigation.goBack()}>
-            <Text style={styles.buttonText}>🔙 Volver</Text>
+          <Text style={styles.emptyTitle}>Sin pedidos</Text>
+          <Text style={styles.emptyText}>No hay pedidos para esta jornada</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>← Volver</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -274,243 +275,279 @@ const JornadaScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.container}>
-      {/* Header con progreso */}
-      <View style={styles.header}>
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
-            Pedido {pedidoIndex + 1} de {pedidos.length}
-          </Text>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { width: `${((pedidoIndex + 1) / pedidos.length) * 100}%` }
-              ]} 
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Card del pedido */}
-      <View style={styles.pedidoCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.pedidoId}>Pedido #{pedidoActual.id}</Text>
-          <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(pedidoActual.estado) }]}>
-            <Text style={styles.estadoText}>{getEstadoText(pedidoActual.estado)}</Text>
-          </View>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.backgroundPattern} />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        <View style={styles.cardContent}>
-          <View style={styles.direccionContainer}>
-            <Text style={styles.direccionLabel}>📍 Dirección:</Text>
-            <Text style={styles.direccionText}>{pedidoActual.direccion}</Text>
+        {/* Progress Header */}
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressTitle}>Pedido {pedidoIndex + 1} de {pedidos.length}</Text>
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[styles.progressFill, { width: `${((pedidoIndex + 1) / pedidos.length) * 100}%` }]} 
+              />
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Botones de navegación */}
-      <View style={styles.navigationSection}>
-        <Text style={styles.sectionTitle}>🗺️ Navegación</Text>
-        <View style={styles.navigationButtons}>
+        {/* Order Card */}
+        <View style={styles.orderCard}>
+          <View style={styles.orderHeader}>
+            <View style={styles.orderIdContainer}>
+              <Text style={styles.orderNumber}>#{pedidoActual.id}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: getEstadoColor(pedidoActual.estado) }]}>
+                <Text style={styles.statusText}>{getEstadoText(pedidoActual.estado)}</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.addressSection}>
+            <Text style={styles.addressLabel}>Dirección</Text>
+            <Text style={styles.addressText}>{pedidoActual.direccion}</Text>
+          </View>
+        </View>
+
+        {/* Navigation Buttons */}
+        <View style={styles.actionSection}>
+          <Text style={styles.sectionLabel}>Navegación</Text>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.wazeButton]} 
+              onPress={() => abrirNavegacion('waze')}
+            >
+              <Text style={styles.buttonEmoji}>🟣</Text>
+              <Text style={styles.buttonLabel}>Waze</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.mapsButton]} 
+              onPress={() => abrirNavegacion('maps')}
+            >
+              <Text style={styles.buttonEmoji}>🗺️</Text>
+              <Text style={styles.buttonLabel}>Maps</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Status Update Buttons */}
+        <View style={styles.actionSection}>
+          <Text style={styles.sectionLabel}>Estado del pedido</Text>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.deliveredButton]} 
+              onPress={marcarComoEntregado}
+            >
+              <Text style={styles.buttonEmoji}>✅</Text>
+              <Text style={styles.buttonLabel}>Entregado</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.problemButton]} 
+              onPress={marcarComoCancelado}
+            >
+              <Text style={styles.buttonEmoji}>⚠️</Text>
+              <Text style={styles.buttonLabel}>Problema</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* End Journey */}
+        <View style={styles.endSection}>
           <TouchableOpacity 
-            style={[styles.button, styles.wazeButton]} 
-            onPress={() => abrirNavegacion('waze')}
+            style={styles.endButton} 
+            onPress={terminarJornada}
           >
-            <Text style={styles.buttonText}>🟣 Waze</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.button, styles.mapsButton]} 
-            onPress={() => abrirNavegacion('maps')}
-          >
-            <Text style={styles.buttonText}>📱 Google Maps</Text>
+            <Text style={styles.endButtonText}>🏁 Terminar jornada</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Botones de acción */}
-      <View style={styles.actionsSection}>
-        <Text style={styles.sectionTitle}>🎯 Acciones del Pedido</Text>
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.deliveredButton]} 
-          onPress={marcarComoEntregado}
-        >
-          <Text style={styles.buttonText}>✅ Marcar como Entregado</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.cancelButton]} 
-          onPress={marcarComoCancelado}
-        >
-          <Text style={styles.buttonText}>❌ No se pudo entregar</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Botón terminar jornada */}
-      <View style={styles.endSection}>
-        <TouchableOpacity 
-          style={[styles.button, styles.endWorkdayButton]} 
-          onPress={terminarJornada}
-        >
-          <Text style={styles.buttonText}>🛑 Terminar Jornada</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  backgroundPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.4,
+    background: `
+      linear-gradient(135deg, #E2E8F0 0%, #F1F5F9 25%, #FFFFFF 50%, #F1F5F9 75%, #E2E8F0 100%)
+    `,
+    backgroundSize: '400px 400px',
+  },
+  scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingTop: 50,
   },
-  header: {
-    marginBottom: 20,
+  
+  // Progress Section
+  progressHeader: {
+    marginBottom: 24,
   },
-  progressContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  progressText: {
+  progressTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#495057',
+    color: '#334155',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  progressBarContainer: {
+    paddingHorizontal: 20,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#e9ecef',
-    borderRadius: 4,
+    height: 4,
+    backgroundColor: 'rgba(148, 163, 184, 0.3)',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 4,
+    backgroundColor: '#3B82F6',
+    borderRadius: 2,
   },
-  pedidoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+
+  // Order Card
+  orderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
+    marginBottom: 32,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 4,
   },
-  cardHeader: {
+  orderHeader: {
+    marginBottom: 20,
+  },
+  orderIdContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  pedidoId: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#212529',
+  orderNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
   },
-  estadoBadge: {
+  statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
   },
-  estadoText: {
-    color: '#fff',
+  statusText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
-  cardContent: {
+  addressSection: {
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: '#F0F0F0',
     paddingTop: 16,
   },
-  direccionContainer: {
-    marginBottom: 8,
-  },
-  direccionLabel: {
+  addressLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6c757d',
-    marginBottom: 4,
+    fontWeight: '500',
+    color: '#666666',
+    marginBottom: 6,
   },
-  direccionText: {
+  addressText: {
     fontSize: 16,
-    color: '#212529',
+    color: '#000000',
     lineHeight: 22,
   },
-  navigationSection: {
+
+  // Action Sections
+  actionSection: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#495057',
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
     marginBottom: 12,
   },
-  navigationButtons: {
+  buttonRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  actionsSection: {
-    marginBottom: 24,
-  },
-  endSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#dee2e6',
-    paddingTop: 20,
-  },
-  button: {
-    padding: 16,
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3,
-    marginVertical: 6,
+    elevation: 2,
   },
-  buttonText: {
-    color: '#fff',
+  buttonEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  buttonLabel: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  wazeButton: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#C7D2FE',
+  },
+  mapsButton: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  deliveredButton: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  problemButton: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FED7AA',
+  },
+
+  // End Section
+  endSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  endButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  endButtonText: {
+    color: '#DC2626',
     fontSize: 16,
     fontWeight: '600',
   },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-  wazeButton: {
-    backgroundColor: '#33ccff',
-    flex: 1,
-  },
-  mapsButton: {
-    backgroundColor: '#4285f4',
-    flex: 1,
-  },
-  deliveredButton: {
-    backgroundColor: '#28a745',
-    paddingVertical: 18,
-  },
-  cancelButton: {
-    backgroundColor: '#fd7e14',
-    paddingVertical: 18,
-  },
-  endWorkdayButton: {
-    backgroundColor: '#dc3545',
-    paddingVertical: 18,
-  },
+
+  // Empty State
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -519,20 +556,37 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#495057',
+    fontWeight: '700',
+    color: '#1E293B',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6c757d',
+    color: '#64748B',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: 32,
+  },
+  backButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  backButtonText: {
+    color: '#334155',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 
