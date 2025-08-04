@@ -48,14 +48,15 @@ export const login = createAsyncThunk(
     try {
       const response = await api.post('/auth/login', { dni, password });
       
-      // Verificar estructura de respuesta
-      if (!response.data.token || !response.data.user) {
-        return thunkAPI.rejectWithValue('Estructura de respuesta incorrecta');
-      }
+      const userRaw = response.data.user || response.data.driver;
+
+     if (!response.data.token || !userRaw) {
+  return thunkAPI.rejectWithValue('Respuesta del servidor inválida');
+}
 
       // Combinar token con datos del usuario
       const userData = {
-        ...response.data.user,
+         ...userRaw,
         token: response.data.token,
         iat: jwtDecode(response.data.token).iat,
         exp: jwtDecode(response.data.token).exp
@@ -94,27 +95,37 @@ export const clearSession = createAsyncThunk(
   }
 );
 // Add this with your other thunks in authSlice.js
+// Add this with your other thunks in authSlice.js
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData, thunkAPI) => {
     try {
       const state = thunkAPI.getState();
-      const token = state.auth.user?.token;
+      const user = state.auth.user;
       
-      if (!token) {
-        return thunkAPI.rejectWithValue('No autenticado');
+      if (!user?.token || !user?.id) {
+        return thunkAPI.rejectWithValue('No autenticado o ID de usuario no válido');
       }
 
-      const response = await api.put('/conductores/actualizar', profileData, {
+      console.log('Updating user ID:', user.id);
+      console.log('Profile data:', profileData);
+
+      // Use the user ID in the URL path instead of 'actualizar'
+      const response = await api.put(`/conductores/${user.id}`, profileData, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${user.token}`,
         },
       });
 
-      // Update the stored user data
+      console.log('Update response:', response.data);
+
+      // Update the stored user data with the response
       const updatedUser = {
-        ...state.auth.user,
+        ...user,
         ...response.data,
+        token: user.token, // Preserve the original token
+        iat: user.iat,     // Preserve JWT timestamp
+        exp: user.exp      // Preserve JWT expiration
       };
 
       await setItem('user', updatedUser);
@@ -122,7 +133,13 @@ export const updateProfile = createAsyncThunk(
       return updatedUser;
     } catch (error) {
       console.error('Error updating profile:', error);
-      return thunkAPI.rejectWithValue(error.response?.data?.message || 'Error al actualizar perfil');
+      console.error('Error response:', error.response?.data);
+      
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || 
+        error.response?.data?.error || 
+        'Error al actualizar perfil'
+      );
     }
   }
 );

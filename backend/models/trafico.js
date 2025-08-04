@@ -2,10 +2,11 @@ const axios = require('axios');
 
 const puntos = [
   { nombre: 'Obelisco', lat: -34.6037, lon: -58.3816 },
-  { nombre: 'Gral Paz y Rivadavia', lat: -34.6333, lon: -58.5200 },
+  { nombre: 'Corrientes y Callao', lat: -34.6056, lon: -58.3938 },
   { nombre: 'Libertador y Sarmiento', lat: -34.5705, lon: -58.4117 },
   { nombre: 'Cabildo y Juramento', lat: -34.5614, lon: -58.4562 },
 ];
+
 
 
 async function getTrafficData() {

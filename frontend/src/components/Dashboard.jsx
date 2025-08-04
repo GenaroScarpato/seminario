@@ -160,7 +160,7 @@ const asignarPedidos = async () => {
 
       {/* 🔹 Asignación */}
       <section className={styles.section}>
-        <h2>Asignar Pedidos</h2>
+        <h2>Asignar Pedidos con IA</h2>
         <button
           className={styles.assignButton}
           onClick={asignarPedidos}

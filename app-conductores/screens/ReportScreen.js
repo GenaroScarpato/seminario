@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {View,Text,StyleSheet,ScrollView,TextInput,TouchableOpacity,Alert,Platform,ActivityIndicator,Modal,KeyboardAvoidingView,Pressable,FlatList} from 'react-native';
 import * as Location from 'expo-location';
+import { useSelector } from 'react-redux'; // Add this import
 import api from '../services/api';
-import { getItem } from '../utils/storage';
 
 const ReportScreen = () => {
+  // Get user from Redux store instead of local storage
+  const { user, isLoading: authLoading } = useSelector((state) => state.auth);
+  
   const [formData, setFormData] = useState({
     tipo: '',
     mensaje: '',
@@ -16,7 +19,6 @@ const ReportScreen = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showTipoModal, setShowTipoModal] = useState(false);
-  const [user, setUser] = useState(null);
 
   const tiposReporte = [
     { label: '🚗 Problema con el vehículo', value: 'vehiculo' },
@@ -39,17 +41,17 @@ const ReportScreen = () => {
   ];
 
   useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const userData = await getItem('user');
-      setUser(userData);
-    } catch (error) {
-      console.error('Error loading user data:', error);
+  
+    
+    // Check if user is not loaded yet
+    if (!user && !authLoading) {
+      Alert.alert(
+        'Error de sesión',
+        'No se pudo cargar la información del usuario. Por favor, inicia sesión nuevamente.',
+        [{ text: 'OK' }]
+      );
     }
-  };
+  }, [user, authLoading]);
 
   const getCurrentLocation = async () => {
     setLocationLoading(true);
@@ -100,6 +102,11 @@ const ReportScreen = () => {
   };
 
   const validateForm = () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'Usuario no válido. Por favor, inicia sesión nuevamente.');
+      return false;
+    }
+    
     if (!formData.tipo) {
       Alert.alert('Error', 'Por favor selecciona un tipo de reporte');
       return false;
@@ -117,44 +124,46 @@ const ReportScreen = () => {
     
     return true;
   };
-const submitReport = async () => {
-  if (!validateForm()) return;
 
-  setLoading(true);
-  try {
-    const reportData = {
-      conductor_id: user?.id,
-      tipo: formData.tipo,
-      mensaje: formData.mensaje.trim(),
-      latitud: formData.ubicacion?.lat,
-      longitud: formData.ubicacion?.lng,
-      gravedad: formData.gravedad
-    };
+  const submitReport = async () => {
+    if (!validateForm()) return;
 
-    const response = await api.post('/reportes', reportData);
+    setLoading(true);
+    try {
+      const reportData = {
+        conductor_id: user.id, // Now this should have a valid ID
+        tipo: formData.tipo,
+        mensaje: formData.mensaje.trim(),
+        latitud: formData.ubicacion?.lat,
+        longitud: formData.ubicacion?.lng,
+        gravedad: formData.gravedad
+      };
 
-    if (response.data.mensaje) {
-      setShowSuccessModal(true);
-      setFormData({
-        tipo: '',
-        mensaje: '',
-        gravedad: 1,
-        ubicacion: null
-      });
-    } else {
-      Alert.alert('Error', response.data.message || 'Error al enviar el reporte');
+     
+
+      const response = await api.post('/reportes', reportData);
+
+      if (response.data.mensaje) {
+        setShowSuccessModal(true);
+        setFormData({
+          tipo: '',
+          mensaje: '',
+          gravedad: 1,
+          ubicacion: null
+        });
+      } else {
+        Alert.alert('Error', response.data.message || 'Error al enviar el reporte');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Error al enviar el reporte. Verifica tu conexión.'
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error submitting report:', error);
-    Alert.alert(
-      'Error',
-      error.response?.data?.message || 'Error al enviar el reporte. Verifica tu conexión.'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const TipoReporteModal = () => (
     <Modal
@@ -216,17 +225,38 @@ const submitReport = async () => {
     </Modal>
   );
 
+  // Show loading while auth is being checked
+  if (authLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#28a745" />
+        <Text style={{ marginTop: 10, color: '#6c757d' }}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  // Show error if no user
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={styles.title}>⚠️ Error de Sesión</Text>
+        <Text style={styles.subtitle}>
+          No se pudo cargar la información del usuario. Por favor, inicia sesión nuevamente.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-       
- <Text style={styles.title}>📋 Nuevo Reporte</Text>
-      <Text style={styles.subtitle}>
-        Describe el problema que estás experimentando
-      </Text>
+        <Text style={styles.title}>📋 Nuevo Reporte</Text>
+        <Text style={styles.subtitle}>
+          Describe el problema que estás experimentando
+        </Text>
 
         <View style={styles.form}>
           {/* Tipo de reporte */}
@@ -327,7 +357,7 @@ const submitReport = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50, // Espaciado superior para que no quede pegado al borde
+    paddingTop: 50,
     backgroundColor: '#e8f5e9',
   },
   scrollView: {

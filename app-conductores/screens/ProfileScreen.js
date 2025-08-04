@@ -1,12 +1,12 @@
 // src/screens/Profile.js
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../slices/authSlice';
+import { logout, updateProfile } from '../slices/authSlice';
 
 const Profile = () => {
   const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth.user);
+  const { user, isLoading, error } = useSelector((state) => state.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     nombre: user?.nombre || '',
@@ -18,19 +18,92 @@ const Profile = () => {
     url_licencia: user?.url_licencia || ''
   });
 
+  // Update formData when user changes (after successful update)
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        nombre: user.nombre || '',
+        apellido: user.apellido || '',
+        dni: user.dni || '',
+        telefono: user.telefono || '',
+        email: user.email || '',
+        direccion: user.direccion || '',
+        url_licencia: user.url_licencia || ''
+      });
+    }
+  }, [user]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+    }
+  }, [error]);
+
   const handleLogout = () => {
-    dispatch(logout());
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro de que quieres cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cerrar Sesión', style: 'destructive', onPress: () => dispatch(logout()) }
+      ]
+    );
   };
 
   const handleEdit = () => {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    // Here you would dispatch an action to update the user data
-    // For example: dispatch(updateProfile(formData));
+  const handleSave = async () => {
+    // Validate required fields
+    if (!formData.nombre.trim() || !formData.apellido.trim()) {
+      Alert.alert('Error', 'El nombre y apellido son obligatorios');
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      Alert.alert('Error', 'El email es obligatorio');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return;
+    }
+
+    try {
+      
+      const result = await dispatch(updateProfile(formData));
+      
+      if (updateProfile.fulfilled.match(result)) {
+        setIsEditing(false);
+        Alert.alert('Éxito', 'Perfil actualizado correctamente');
+      } else {
+        // Handle the error case
+        console.error('Update profile failed:', result.payload);
+        Alert.alert('Error', result.payload || 'Error al actualizar el perfil');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Error al actualizar el perfil');
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form data to original user data
+    setFormData({
+      nombre: user?.nombre || '',
+      apellido: user?.apellido || '',
+      dni: user?.dni || '',
+      telefono: user?.telefono || '',
+      email: user?.email || '',
+      direccion: user?.direccion || '',
+      url_licencia: user?.url_licencia || ''
+    });
     setIsEditing(false);
-    // Note: You'll need to create an updateProfile thunk in authSlice
   };
 
   const handleChange = (name, value) => {
@@ -40,35 +113,54 @@ const Profile = () => {
     });
   };
 
+  // Show loading if user is not loaded yet
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Cargando perfil...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Mi Perfil</Text>
       
-    
+      {/* Avatar Section */}
+      <View style={styles.avatarContainer}>
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarText}>
+            {user.nombre?.charAt(0)?.toUpperCase()}{user.apellido?.charAt(0)?.toUpperCase()}
+          </Text>
+        </View>
+      </View>
 
       {/* Content Card */}
       <View style={styles.card}>
         {isEditing ? (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre</Text>
+              <Text style={styles.label}>Nombre *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.nombre}
                 onChangeText={(text) => handleChange('nombre', text)}
                 placeholder="Ingresa tu nombre"
                 placeholderTextColor="#999"
+                editable={!isLoading}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Apellido</Text>
+              <Text style={styles.label}>Apellido *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.apellido}
                 onChangeText={(text) => handleChange('apellido', text)}
                 placeholder="Ingresa tu apellido"
                 placeholderTextColor="#999"
+                editable={!isLoading}
               />
             </View>
 
@@ -77,11 +169,11 @@ const Profile = () => {
               <TextInput
                 style={[styles.input, styles.inputDisabled]}
                 value={formData.dni}
-                onChangeText={(text) => handleChange('dni', text)}
                 editable={false}
                 placeholder="DNI"
                 placeholderTextColor="#999"
               />
+              <Text style={styles.helperText}>El DNI no puede ser modificado</Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -93,11 +185,12 @@ const Profile = () => {
                 keyboardType="phone-pad"
                 placeholder="Número de teléfono"
                 placeholderTextColor="#999"
+                editable={!isLoading}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Email *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.email}
@@ -105,18 +198,42 @@ const Profile = () => {
                 keyboardType="email-address"
                 placeholder="correo@ejemplo.com"
                 placeholderTextColor="#999"
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Dirección</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.direccion}
+                onChangeText={(text) => handleChange('direccion', text)}
+                placeholder="Tu dirección"
+                placeholderTextColor="#999"
+                editable={!isLoading}
               />
             </View>
 
             <View style={styles.buttonGroup}>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSave}>
-                <Text style={styles.primaryButtonText}>Guardar Cambios</Text>
-              </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.secondaryButton} 
-                onPress={() => setIsEditing(false)}
+                style={[styles.primaryButton, isLoading && styles.buttonDisabled]} 
+                onPress={handleSave}
+                disabled={isLoading}
               >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>💾 Guardar Cambios</Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.secondaryButton, isLoading && styles.buttonDisabled]} 
+                onPress={handleCancel}
+                disabled={isLoading}
+              >
+                <Text style={styles.secondaryButtonText}>❌ Cancelar</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -135,12 +252,17 @@ const Profile = () => {
 
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Teléfono</Text>
-                <Text style={styles.infoValue}>{user?.telefono}</Text>
+                <Text style={styles.infoValue}>{user?.telefono || 'No especificado'}</Text>
               </View>
 
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Email</Text>
                 <Text style={styles.infoValue}>{user?.email}</Text>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>Dirección</Text>
+                <Text style={styles.infoValue}>{user?.direccion || 'No especificada'}</Text>
               </View>
 
               <View style={styles.infoItem}>
@@ -154,19 +276,21 @@ const Profile = () => {
                 </View>
               </View>
 
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Vehículo ID</Text>
-                <Text style={styles.infoValue}>{user?.vehiculo_id}</Text>
-              </View>
+              {user?.vehiculo_id && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Vehículo ID</Text>
+                  <Text style={styles.infoValue}>{user?.vehiculo_id}</Text>
+                </View>
+              )}
 
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Registrado desde</Text>
                 <Text style={styles.infoValue}>
-                  {new Date(user?.created_at).toLocaleDateString('es-ES', {
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('es-ES', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
-                  })}
+                  }) : 'No disponible'}
                 </Text>
               </View>
             </View>
@@ -192,7 +316,7 @@ export default Profile;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9', // Verde claro de fondo
+    backgroundColor: '#E8F5E9',
     paddingTop: 50,
     paddingHorizontal: 20,
   },
@@ -281,6 +405,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     color: '#999',
   },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   // Estilos para modo visualización
   infoSection: {
     marginBottom: 30,
@@ -332,7 +462,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 8,
-    transform: [{ scale: 1 }],
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -382,5 +511,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
